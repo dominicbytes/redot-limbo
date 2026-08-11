@@ -1,0 +1,21 @@
+; Deterministic compatibility fixture for LimboAI.
+config_version=5
+
+[application]
+
+config/name="Redot LimboAI Fixture"
+config/features=PackedStringArray("4.5", "GL Compatibility")
+
+[display]
+
+window/size/viewport_width=1280
+window/size/viewport_height=720
+
+[limboai_fixture]
+
+expect_editor_classes=true
+
+[rendering]
+
+renderer/rendering_method="gl_compatibility"
+renderer/rendering_method.mobile="gl_compatibility"

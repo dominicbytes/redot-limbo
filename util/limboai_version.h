@@ -31,6 +31,9 @@ inline String GET_LIMBOAI_VERSION() {
 	if (strlen(LIMBOAI_VERSION_STATUS) > 0) {
 		version += "-" + String(LIMBOAI_VERSION_STATUS);
 	}
+	if (strlen(LIMBOAI_VERSION_DOWNSTREAM) > 0) {
+		version += "+" + String(LIMBOAI_VERSION_DOWNSTREAM);
+	}
 	return version;
 }
 

@@ -35,6 +35,7 @@
 #include <godot_cpp/classes/input_event_key.hpp>
 #include <godot_cpp/classes/os.hpp>
 #include <godot_cpp/classes/script.hpp>
+#include <godot_cpp/core/version.hpp>
 #endif // ! LIMBOAI_GDEXTENSION
 
 LimboUtility *LimboUtility::singleton = nullptr;
@@ -420,6 +421,8 @@ String LimboUtility::get_property_hint_text(PropertyHint p_hint) const {
 		case PROPERTY_HINT_NO_NODEPATH: {
 			return "NO_NODEPATH";
 		}
+#endif // LIMBOAI_MODULE
+#if defined(LIMBOAI_MODULE) || (defined(LIMBOAI_GDEXTENSION) && GODOT_VERSION_MINOR >= 5)
 		case PROPERTY_HINT_GROUP_ENABLE: {
 			return "GROUP_ENABLE";
 		}
@@ -429,7 +432,7 @@ String LimboUtility::get_property_hint_text(PropertyHint p_hint) const {
 		case PROPERTY_HINT_FILE_PATH: {
 			return "FILE_PATH";
 		}
-#endif // ! LIMBOAI_MODULE
+#endif // LimboAI module or GDExtension API 4.5+
 		case PROPERTY_HINT_MAX: {
 			return "MAX";
 		}
@@ -448,6 +451,9 @@ PackedInt32Array LimboUtility::get_property_hints_allowed_for_type(Variant::Type
 		case Variant::Type::CALLABLE:
 		case Variant::Type::SIGNAL:
 		case Variant::Type::BOOL: {
+#if defined(LIMBOAI_MODULE) || (defined(LIMBOAI_GDEXTENSION) && GODOT_VERSION_MINOR >= 5)
+			hints.append(PROPERTY_HINT_GROUP_ENABLE);
+#endif
 		} break;
 		case Variant::Type::INT: {
 			hints.append(PROPERTY_HINT_RANGE);
@@ -480,6 +486,10 @@ PackedInt32Array LimboUtility::get_property_hints_allowed_for_type(Variant::Type
 			hints.append(PROPERTY_HINT_GLOBAL_SAVE_FILE);
 			hints.append(PROPERTY_HINT_LOCALE_ID);
 			hints.append(PROPERTY_HINT_PASSWORD);
+#if defined(LIMBOAI_MODULE) || (defined(LIMBOAI_GDEXTENSION) && GODOT_VERSION_MINOR >= 5)
+			hints.append(PROPERTY_HINT_INPUT_NAME);
+			hints.append(PROPERTY_HINT_FILE_PATH);
+#endif
 		} break;
 		case Variant::Type::VECTOR2:
 		case Variant::Type::VECTOR2I:
@@ -512,6 +522,9 @@ PackedInt32Array LimboUtility::get_property_hints_allowed_for_type(Variant::Type
 			hints.append(PROPERTY_HINT_ENUM_SUGGESTION);
 			hints.append(PROPERTY_HINT_PLACEHOLDER_TEXT);
 			hints.append(PROPERTY_HINT_PASSWORD);
+#if defined(LIMBOAI_MODULE) || (defined(LIMBOAI_GDEXTENSION) && GODOT_VERSION_MINOR >= 5)
+			hints.append(PROPERTY_HINT_INPUT_NAME);
+#endif
 		} break;
 		case Variant::Type::NODE_PATH: {
 			hints.append(PROPERTY_HINT_NODE_PATH_VALID_TYPES);
