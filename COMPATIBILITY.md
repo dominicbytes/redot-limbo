@@ -9,7 +9,7 @@
 | Precision | Single |
 | LimboAI baseline | `1.6.0` plus documented isolated fixes |
 | Windows | x86-64 editor and template-release libraries |
-| Linux | x86-64 editor and template-release libraries |
+| Linux | x86-64 editor and template-release libraries; glibc 2.38 or newer |
 | macOS | Universal x86-64 + arm64 editor and template-release frameworks |
 | Language extension points | Typed GDScript |
 
