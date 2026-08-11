@@ -5,7 +5,7 @@
 - Target: Redot 26.2 LTS (`26.2.stable.official.4f5b14aba`; Godot/GDExtension lineage `4.5.2 stable`)
 - Local research snapshot: `limbonaut/limboai@a6f5c7fc11ff80d512dd75c82cfa85724fd8a742` on `master`
 - Selected feature baseline: `v1.8.0@3fbd85118b924d50c10a495ad5c7175028649d77`
-- Status: v1.8 implementation and local evidence complete; authorized source push pending, with v1.6 retained only as the compatibility checkpoint
+- Status: v1.8 implementation, local evidence, and authorized source publication complete; v1.6 is retained only as the compatibility checkpoint
 - Scope authority: [preflight report](preflight-report.md) and [porting specification](../../../redot_plugin_porting_codex_spec.md), section 10
 
 ## Approved v1.8 scope amendment

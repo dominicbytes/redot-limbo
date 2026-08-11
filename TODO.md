@@ -36,7 +36,7 @@
   byte-identical bytes plus file-level rights inventories.
 - [x] Reconcile final platform/archive hashes and verdicts into the reports and
   source-of-truth workbook.
-- [ ] Push the completed source branch to `dominicbytes/redot-limbo` and mark
+- [x] Push the completed source branch to `dominicbytes/redot-limbo` and mark
   the repository description as the Redot port.
 
 ## Required before a release claim
