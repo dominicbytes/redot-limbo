@@ -4,7 +4,7 @@ Date: 2026-08-11
 
 - Previous compatibility checkpoint: `v1.6.0@91b22a187f7cd701e25eedd6dcff34179795e687`
 - Selected feature baseline: `v1.8.0@3fbd85118b924d50c10a495ad5c7175028649d77`
-- Range: 56 commits, including 48 non-merge commits
+- Range: 56 commits, including 49 non-merge commits
 - Result: all upstream source changes in the immutable 1.8 tag are adopted
 
 The earlier 1.6 port established that Redot 26.2 exposes a usable 4.5.2-lineage

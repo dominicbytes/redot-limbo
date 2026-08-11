@@ -18,7 +18,7 @@ Git object IDs. The public release gate is not implied by this source lock.
 | Downstream version | `1.8.0+redot.26.2.1` |
 
 The complete immutable `v1.8.0` tag is the feature baseline. It contains all
-48 non-merge commits after `v1.6.0`, including the 1.7 editor/debugger/HSM
+49 non-merge commits after `v1.6.0`, including the 1.7 editor/debugger/HSM
 features and the 1.8 safety/build fixes. Upstream targets Godot 4.6 and carries
 4.7 build compatibility; this downstream preserves that source baseline while
 adapting only engine-facing incompatibilities proven against Redot 26.2's

@@ -16,48 +16,39 @@ Status: PASS for classification, package rules, and final local archives.
 
 The font hashes and embedded copyright/license strings were inspected from the
 shipped files. `demo/THIRD_PARTY_FONTS.md` supplies notices and
-`demo/OFL-1.1.txt` supplies the license. The official OFL text and each font's
-canonical project were used as the external rights check.
+`demo/OFL-1.1.txt` supplies the license.
 
-## Core rules
+## Package rules
 
-`scripts/package_release.py` includes only:
+`scripts/package_release.py` includes in core only the `.gdextension`
+manifest, exactly six desktop native libraries, non-logo class icons,
+installation/compatibility/limitations/migration/notices, the MIT license,
+version, and deterministic checksums. It removes the `LimboAI.svg` mapping and
+excludes the logo file.
 
-- the `.gdextension` manifest;
-- exactly six desktop native libraries;
-- all non-logo class icons;
-- installation, compatibility, limitations, migration, and notices;
-- the MIT license, version, and deterministic checksums.
-
-It removes the `LimboAI.svg` mapping from the packaged manifest and excludes
-the logo file. The package fails for missing platform binaries, dirty source
-without an explicit evidence-only override, cache/test/build paths, private-key
-markers, fixture markers, or local source paths.
-
-## Demo rules
-
-The separate demo archive includes the project/tutorial, branding copy,
-CC BY notices, MIT notice for scripts, OFL notices/text, version, and
-checksums. It contains no native addon or build cache.
+The separate demo archive includes the project/tutorial, branding copy, CC BY
+notices, MIT notice for scripts, OFL notices/text, version, and checksums. It
+contains no native addon or build cache.
 
 Every archive entry receives a path, SHA-256, size, and license classification
-in `release-manifest.json`. Two packaging runs are byte-compared locally and in
-CI before artifacts are accepted. The workflow never publishes a GitHub
-release.
+in `release-manifest.json`. Packaging fails for missing platform binaries,
+dirty source without an explicit evidence-only override, cache/test/build
+paths, private-key markers, fixture markers, or local source paths. The
+workflow never publishes a GitHub release.
 
 ## Final local archive result
 
 Both runs used clean source commit
-`f51be6ba2b2761234cfd6d804470a88379ce5538` and produced identical bytes:
+`a6c0d0863fb98f93d1219acbe6fc07b3608614be` and produced identical bytes:
 
 | Archive | Entries | Bytes | SHA-256 |
 | --- | ---: | ---: | --- |
-| `redot-limboai-1.6.0+redot.26.2.1-core.zip` | 78 | 10,420,481 | `FF4E028C09784A1C0F83BBC1F0AB6EAF6D6BB0FBD046F22745F463E94D1FEE70` |
-| `redot-limboai-1.6.0+redot.26.2.1-demo.zip` | 171 | 3,733,279 | `30456BCF232E029368CBB9913F850581356C15A384F5E1CE3E4C0EB417ECC8A3` |
+| `redot-limboai-1.8.0+redot.26.2.1-core.zip` | 78 | 10,762,336 | `D4C339702D7F3DCCDF5D414EDE7EA1F5C0174385DB65F7A75685CFCA88C39075` |
+| `redot-limboai-1.8.0+redot.26.2.1-demo.zip` | 171 | 3,739,279 | `7F4C8A31C51BE566357E2D37966166730C1B5697CA8350F0D18FACEC426F3DE3` |
 
 The core inventory contains the six audited native libraries, MIT material,
 and approved addon documentation/icons only. The logo, demo, fonts, fixture,
 test, cache, source checkout, credentials, and local build paths are absent.
-The demo inventory contains no native addon or build cache. The package scan
-and clean-install runtime checks pass; publication remains a separate owner
-gate.
+The demo inventory contains no native addon or build cache. Fresh Windows and
+Linux editor/release runs and an 89-file packed Linux release run pass from the
+core archive. Source publication remains separate from tag/release authority.

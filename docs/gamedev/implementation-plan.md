@@ -5,7 +5,7 @@
 - Target: Redot 26.2 LTS (`26.2.stable.official.4f5b14aba`; Godot/GDExtension lineage `4.5.2 stable`)
 - Local research snapshot: `limbonaut/limboai@a6f5c7fc11ff80d512dd75c82cfa85724fd8a742` on `master`
 - Selected feature baseline: `v1.8.0@3fbd85118b924d50c10a495ad5c7175028649d77`
-- Status: v1.8 integration complete; final package/evidence reconciliation in progress, with v1.6 retained only as the compatibility checkpoint
+- Status: v1.8 implementation and local evidence complete; authorized source push pending, with v1.6 retained only as the compatibility checkpoint
 - Scope authority: [preflight report](preflight-report.md) and [porting specification](../../../redot_plugin_porting_codex_spec.md), section 10
 
 ## Approved v1.8 scope amendment
@@ -409,7 +409,7 @@ No design fog blocks MS-005. The exact source patch and later lanes are delibera
 
 | Task | Outcome | Acceptance check |
 | --- | --- | --- |
-| LIM-022 | Replace the 1.6 feature baseline with exact upstream `v1.8.0` while retaining downstream Redot build/test/package infrastructure. | A source inventory accounts for all 48 non-merge upstream commits; omitted or altered upstream lines map only to a documented Redot incompatibility. |
+| LIM-022 | Replace the 1.6 feature baseline with exact upstream `v1.8.0` while retaining downstream Redot build/test/package infrastructure. | A source inventory accounts for all 49 non-merge upstream commits; omitted or altered upstream lines map only to a documented Redot incompatibility. |
 | LIM-023 | Compile and load the complete v1.8 runtime and editor source against the locked Redot 26.2 binding. | Windows editor and template-release builds complete without unexplained warnings; bounded Redot editor/runtime initialization registers the expected classes and exits cleanly. |
 | LIM-024 | Prove the later feature surface, including HSM transition cargo, the reworked task palette/layout, probability/status overlays, and runtime blackboard inspection. | Direct deterministic tests pass for runtime semantics; the visible-editor protocol names and exercises every later editor feature at both required UI profiles. |
 | LIM-025 | Rerun the complete BT, blackboard, subtree, custom GDScript, HSM/BTState, resource round-trip, multi-agent, view, monitor, and migration matrix. | All deterministic cases pass with zero suspicious log lines and exact documented semantic results. |

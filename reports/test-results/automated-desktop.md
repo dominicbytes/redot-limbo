@@ -1,96 +1,105 @@
 # Automated desktop evidence
 
 Date: 2026-08-11
-Scope: headless/static automated evidence only.
+Scope: headless/static automated evidence for the LimboAI 1.8 Redot port.
 
 ## Locked source and engine
 
-- Runtime source commit: `2e32af7802ef1d1fa8cd1b3d1e0a77b438b36398`.
-- Harness hardening commit: `d35033e`.
-- Clean package source commit: `f51be6ba2b2761234cfd6d804470a88379ce5538`.
+- Runtime and clean-package source commit:
+  `a6c0d0863fb98f93d1219acbe6fc07b3608614be`.
+- Upstream second parent:
+  `3fbd85118b924d50c10a495ad5c7175028649d77` (`v1.8.0`).
 - Redot: `26.2.stable.official.4f5b14aba`.
 - Redot C++: `598ec78e86b2c240a023f6de13daba70f7de8610`.
 - Official API SHA-256:
   `177E7796166929B2193C9CCE2FD32F59601A0147D0D1E7FE904B94E8F69F6577`.
 
-The unchanged LimboAI 1.6.0 oracle and the selected Redot port normalize to
-the same 11-case semantic result: registration, blackboard, resource round
-trip, direct ticks, clone, built-in semantics, `BTPlayer`, 32 agents, custom
-task categories, HSM/`BTState`, and runtime view/200 agents.
+The final Redot fixture passes 13 cases: registration, blackboard contract,
+v1.8 scoped runtime inspection, resource round trip, direct ticks, clone,
+built-in semantics, `BTPlayer`, 32 agents, custom task categories, v1.8 HSM
+transition cargo, HSM/`BTState`, and runtime view/200 agents. Editor and forced
+release-library runs pass on Windows and Ubuntu 24.04 with zero suspicious
+lines. The historical v1.6 Godot/Redot comparison remains API-lineage evidence,
+not an oracle for 1.8-only behavior.
 
 ## Windows x86-64
 
 | Profile | Bytes | SHA-256 | Result |
 | --- | ---: | --- | --- |
-| Editor | 2,435,584 | `D244C56657C1F5D145528BF2E893032709504F598A6574837A797466CEF6099F` | PE audit PASS; editor import and 11 cases PASS; zero suspicious lines. |
-| Template release | 1,189,376 | `E01C5F14F39EE19DE695D18FA887B3A7A3D56BD40B0C6B13E15AAFC4D2E59971` | Exact forced release mapping and 11 cases PASS; zero suspicious lines. |
+| Editor | 2,454,016 | `ECFA90017DE6BEF0945C5FEA05CC8368F5F4BA6CBBC4B09347AD2ED3C90F914E` | PE audit PASS; editor import and 13 cases PASS; zero suspicious lines. |
+| Template release | 1,203,200 | `312A6EB51B83A7EE79CF705F650EB40E2955C1820FD7F2A21F34413A0DC85E6B` | Exact forced release mapping and 13 cases PASS; zero suspicious lines. |
 
 Both DLLs are PE x86-64, export `limboai_init`, depend only on
-`KERNEL32.dll`, contain zero forbidden strings, and are not signed. The local
-Redot editor SHA-256 is
+`KERNEL32.dll`, contain zero forbidden strings, and are not signed. The editor
+binary contains downstream version `1.8.0+redot.26.2.1` and source short hash
+`a6c0d08`. The local Redot editor SHA-256 is
 `5633D02A28A73514084DF6A60FFE01FABDBBB9AC5E28FDFD590ED47277F51989`.
 
 ## Linux x86-64
 
-| Profile | Bytes | SHA-256 | Result |
-| --- | ---: | --- | --- |
-| Editor | 5,784,048 | `F8E232A328E5EBFE1F9AB7606875A852AFD0D95E23C02D8C9BF3BD967A2CA3BF` | ELF audit PASS; editor import and 11 cases PASS; zero suspicious lines. |
-| Template release | 4,039,856 | `2291FCABF6B92A391E07368883AAFB7F38CC52715EEDB9E9FDA2E3EEC3A63A7C` | ELF audit PASS; exact forced release mapping and 11 cases PASS; zero suspicious lines. |
+| Profile | Bytes | SHA-256 | Build ID | Result |
+| --- | ---: | --- | --- | --- |
+| Editor | 6,104,080 | `FCDB32CF5A250F72077A980DAE9B0BAE8C5FEF60C04D8797439EDC4FA0BAA405` | `052ccef1bff88940c141637afa94f1c204c92c16` | ELF audit PASS; editor import and 13 cases PASS; zero suspicious lines. |
+| Template release | 4,052,144 | `873BD867F3A844C65020F6F278A85A8F2B273A3FCAAB9EA5D2D3E629ABFE9656` | `52bf974f4a3a067fe4377973d1db00493e3625cf` | ELF audit PASS; exact forced release mapping and 13 cases PASS; zero suspicious lines. |
 
 Both shared objects are stripped ELF64 x86-64, export `limboai_init`, and
-require only `libm.so.6`, `libc.so.6`, and `ld-linux-x86-64.so.2`. The Redot
-Linux editor SHA-256 is
+require only `libm.so.6`, `libc.so.6`, and `ld-linux-x86-64.so.2`. Their ELF
+version requirements peak at `GLIBC_2.38`. The Redot Linux editor SHA-256 is
 `11D299E0F01A63574E612C64718CA3037A65540139DEC7B93A87650EE9AAB2F3`.
-Their ELF version requirements peak at `GLIBC_2.38`; the Ubuntu 24.04/glibc
-2.38 floor is enforced by the binary audit and declared in the shipped
-compatibility and limitations documents.
-The exact release binary extracted from the final core archive also passes an
-89-file packed PCK run with all 11 cases and zero suspicious lines. The packed
-fixture SHA-256 is
-`63F19B0741847F1D5A289DE1744C0C50DC6EA6A14B8C1C1768F5B68645AD13CB`.
+
+The exact release library extracted from the core archive also passes an
+89-file packed PCK run with all 13 cases. The PCK is 39,247,688 bytes with
+SHA-256
+`1B453F33771D23FD2F6AE8B9F6B014C73AFD10C616A315D407B513873B1D293E`.
+Native libraries remain alongside the PCK at deployment time because Redot
+cannot load a GDExtension shared object from inside a PCK.
 
 ## macOS universal
 
 | Profile | Bytes | SHA-256 | Result |
 | --- | ---: | --- | --- |
-| Editor | 15,450,112 | `283E258CD9514743A233CAFD9B824ADC5BD8A1C6A7BA324B46BF0C3E4905520A` | Structural universal audit PASS. |
-| Template release | 8,863,744 | `DC4F4FEE2E9B0144530B4D3CF5B7101DD7167FF79AB1897863B7AAA3C5BF60A6` | Structural universal audit PASS. |
+| Editor | 16,449,536 | `3C45D891428A469CA6DF2C54433E073C3BB17A0913630F40F175BD385F42520C` | Structural universal audit PASS. |
+| Template release | 8,896,512 | `19640178510822407C268CAFF28F91DEFCAC0DFB3A88179BD85859D9925A5FA3` | Structural universal audit PASS. |
 
 Each framework has exactly x86-64 and arm64 slices, macOS 11.0 deployment
 target, only `/usr/lib/libSystem.B.dylib`, `_limboai_init`, a stable
 `@rpath/<binary-name>` install identity, and zero forbidden strings. Zig emits
 an ad-hoc code-signature command for arm64 but not x86-64; neither constitutes
-Developer ID signing or notarization. Native macOS execution remains a hosted
-CI release gate.
+Developer ID signing or notarization. Verbose nullability diagnostics originate
+in Zig's bundled libc++ build, not LimboAI source. Native macOS execution
+remains a hosted CI release gate.
 
-## Deterministic archives and clean install
+## Demo and deterministic archives
 
-Two clean-source package runs from `f51be6ba` produced byte-identical archives:
+The final Windows editor library was copied into a clean imported 1.8 demo.
+The project had already passed a 71-file static check; its final bounded full
+run exits zero without parse, load, runtime, or warning output.
+
+Two clean-source package runs from `a6c0d0863fb98f93d1219acbe6fc07b3608614be`
+produced byte-identical archives and manifests:
 
 | Archive | Entries | Bytes | SHA-256 |
 | --- | ---: | ---: | --- |
-| Core | 78 | 10,420,481 | `FF4E028C09784A1C0F83BBC1F0AB6EAF6D6BB0FBD046F22745F463E94D1FEE70` |
-| Demo | 171 | 3,733,279 | `30456BCF232E029368CBB9913F850581356C15A384F5E1CE3E4C0EB417ECC8A3` |
+| Core | 78 | 10,762,336 | `D4C339702D7F3DCCDF5D414EDE7EA1F5C0174385DB65F7A75685CFCA88C39075` |
+| Demo | 171 | 3,739,279 | `7F4C8A31C51BE566357E2D37966166730C1B5697CA8350F0D18FACEC426F3DE3` |
 
 The core archive was extracted into a new addon root. Windows and Ubuntu 24.04
-editor/template-release runs each passed all 11 cases with zero suspicious
-lines. The forced release runs selected the exact packaged Windows and Linux
-release hashes listed above. This proves headless initialization and runtime
-behavior from the archive; it does not substitute for the visible editor
-authoring protocol or native Windows/macOS game exports.
+editor/template-release runs each passed all 13 cases with zero suspicious
+lines, and the forced release runs selected the exact packaged hashes above.
 
-## Performance samples
+## Performance smoke samples
 
-The 200-agent sample completed in 3,172 microseconds (Windows editor), 2,984
-microseconds (Windows release), 3,119 microseconds (Linux editor), and 2,566
-microseconds (Linux release). Archive clean-install samples also passed at
-3,796, 3,319, 3,299, and 2,906 microseconds respectively, and the packed Linux
-run completed in 2,583 microseconds. These are smoke samples, not the plan's
-required controlled warmup-plus-five performance claim.
+Direct-build samples completed in 3,229 microseconds (Windows editor), 3,040
+(Windows release), 3,174 (Linux editor), and 2,769 (Linux release). Fresh
+archive samples completed in 3,229, 2,999, 3,301, and 2,691 microseconds in the
+same order. The packed Linux run completed in 2,646 microseconds. These are
+single smoke samples, not the plan's controlled warmup-plus-five performance
+claim.
 
 ## Gates not proven by this report
 
 This report does not pass visible-editor UX/accessibility/debugger/lifecycle
-work, the full five-run performance/oracle matrix, native macOS runtime,
-native Windows/macOS exported products, Developer ID signing/notarization, or
-publication.
+work, the full performance matrix, native macOS runtime, native Windows/macOS
+exported products, Developer ID signing/notarization, or a public binary
+release. Source publication to the designated Redot fork is separately
+authorized; tags and releases are not.
