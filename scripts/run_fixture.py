@@ -83,6 +83,21 @@ def find_result(state_root: Path) -> Path:
     return matches[0]
 
 
+def isolated_environment(state_root: Path) -> dict[str, str]:
+    environment = os.environ.copy()
+    locations = {
+        "APPDATA": state_root / "Roaming",
+        "LOCALAPPDATA": state_root / "Local",
+        "XDG_DATA_HOME": state_root / "share",
+        "XDG_CONFIG_HOME": state_root / "config",
+        "XDG_CACHE_HOME": state_root / "cache",
+    }
+    for name, location in locations.items():
+        location.mkdir(parents=True, exist_ok=True)
+        environment[name] = str(location)
+    return environment
+
+
 def run_command(
     command: list[str], project_root: Path, environment: dict[str, str], timeout: int
 ) -> tuple[int, str, bool, float]:
@@ -153,8 +168,6 @@ def main() -> int:
     if output.exists():
         shutil.rmtree(output)
     project_root.mkdir(parents=True)
-    (state_root / "Roaming").mkdir(parents=True)
-    (state_root / "Local").mkdir(parents=True)
     copy_fixture(source_root, project_root)
     copy_addon(addon_project, project_root)
     selected_library = None
@@ -202,9 +215,7 @@ def main() -> int:
         "--quit-after",
         "120",
     ]
-    environment = os.environ.copy()
-    environment["APPDATA"] = str(state_root / "Roaming")
-    environment["LOCALAPPDATA"] = str(state_root / "Local")
+    environment = isolated_environment(state_root)
     if forced_release_platform is not None:
         import_return_code, import_output, import_timed_out, import_duration = (
             0,

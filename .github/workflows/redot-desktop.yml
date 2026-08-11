@@ -221,8 +221,8 @@ jobs:
           python3 -m pip install --disable-pip-version-check scons=="$SCONS_VERSION"
           python3 -m unittest discover -s tests -p 'test_*.py'
           mkdir -p build/ci-addon
-          python3 -m SCons --project=build/ci-addon platform=macos target=editor arch=universal -j2
-          python3 -m SCons --project=build/ci-addon platform=macos target=template_release arch=universal -j2
+          python3 -m SCons --project=build/ci-addon platform=macos target=editor arch=universal macos_deployment_target=11.0 -j2
+          python3 -m SCons --project=build/ci-addon platform=macos target=template_release arch=universal macos_deployment_target=11.0 -j2
           for library in \
             build/ci-addon/addons/limboai/bin/liblimboai.macos.editor.framework/liblimboai.macos.editor \
             build/ci-addon/addons/limboai/bin/liblimboai.macos.template_release.framework/liblimboai.macos.template_release; do
@@ -234,7 +234,11 @@ jobs:
               echo "Forbidden embedded string in $library" >&2
               exit 4
             fi
-          done | tee build/macos-binary-audit.log
+          done
+          python3 scripts/audit_macos_binary.py \
+            build/ci-addon/addons/limboai/bin/liblimboai.macos.editor.framework/liblimboai.macos.editor \
+            build/ci-addon/addons/limboai/bin/liblimboai.macos.template_release.framework/liblimboai.macos.template_release \
+            | tee build/macos-binary-audit.log
           python3 scripts/run_fixture.py --engine "$REDOT_BIN" --addon-project build/ci-addon --output ../build/redot-limboai/ci/macos-editor --label ci-macos-editor
           python3 scripts/run_fixture.py --engine "$REDOT_BIN" --addon-project build/ci-addon --output ../build/redot-limboai/ci/macos-release --label ci-macos-release --force-macos-release-library
 

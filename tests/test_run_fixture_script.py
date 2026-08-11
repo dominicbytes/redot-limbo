@@ -41,6 +41,23 @@ class ForceReleaseLibraryTests(unittest.TestCase):
                 manifest.read_text(encoding="utf-8"),
             )
 
+    def test_isolated_environment_covers_windows_and_xdg_state(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            state_root = Path(temporary_directory)
+
+            environment = RUN_FIXTURE.isolated_environment(state_root)
+
+            expected = {
+                "APPDATA": state_root / "Roaming",
+                "LOCALAPPDATA": state_root / "Local",
+                "XDG_DATA_HOME": state_root / "share",
+                "XDG_CONFIG_HOME": state_root / "config",
+                "XDG_CACHE_HOME": state_root / "cache",
+            }
+            for name, location in expected.items():
+                self.assertEqual(Path(environment[name]), location)
+                self.assertTrue(location.is_dir())
+
 
 if __name__ == "__main__":
     unittest.main()
