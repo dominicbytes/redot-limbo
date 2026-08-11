@@ -17,7 +17,7 @@
 - [x] Cross-build and structurally audit macOS universal editor and
   template-release frameworks with stable install identities.
 - [x] Implement pinned native desktop CI and deterministic core/demo packaging.
-- [x] Produce core/demo archives twice from clean commit `4e6a8c0` and verify
+- [x] Produce core/demo archives twice from clean commit `f51be6ba` and verify
   byte-identical output plus file-level rights inventories.
 - [x] Extract the final core archive and pass all 11 cases with zero suspicious
   lines on Windows and Ubuntu 24.04 editor/template-release runs.

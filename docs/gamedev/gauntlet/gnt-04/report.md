@@ -17,8 +17,8 @@ Verdict: **BLOCKED**
   required symbol, and zero forbidden strings.
 - Core/demo content is rights-separated and every source, logo, demo graphic,
   and font license is classified.
-- Two clean-source packaging runs from `4e6a8c0` are byte-identical. The
-  78-entry core SHA-256 is `4BAA0069...F261298`; the 171-entry demo SHA-256 is
+- Two clean-source packaging runs from `f51be6ba` are byte-identical. The
+  78-entry core SHA-256 is `FF4E028C...D1FEE70`; the 171-entry demo SHA-256 is
   `30456BCF...ECC8A3`.
 - A fresh core extraction passes Windows and Ubuntu 24.04 editor and
   template-release fixtures: all 11 cases and zero suspicious lines in each.

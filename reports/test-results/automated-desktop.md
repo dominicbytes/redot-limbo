@@ -7,7 +7,7 @@ Scope: headless/static automated evidence only.
 
 - Runtime source commit: `2e32af7802ef1d1fa8cd1b3d1e0a77b438b36398`.
 - Harness hardening commit: `d35033e`.
-- Clean package source commit: `4e6a8c0dfbb0ecbbdc1f61ba3f97542911754c75`.
+- Clean package source commit: `f51be6ba2b2761234cfd6d804470a88379ce5538`.
 - Redot: `26.2.stable.official.4f5b14aba`.
 - Redot C++: `598ec78e86b2c240a023f6de13daba70f7de8610`.
 - Official API SHA-256:
@@ -41,10 +41,13 @@ Both shared objects are stripped ELF64 x86-64, export `limboai_init`, and
 require only `libm.so.6`, `libc.so.6`, and `ld-linux-x86-64.so.2`. The Redot
 Linux editor SHA-256 is
 `11D299E0F01A63574E612C64718CA3037A65540139DEC7B93A87650EE9AAB2F3`.
+Their ELF version requirements peak at `GLIBC_2.38`; the Ubuntu 24.04/glibc
+2.38 floor is enforced by the binary audit and declared in the shipped
+compatibility and limitations documents.
 The exact release binary extracted from the final core archive also passes an
 89-file packed PCK run with all 11 cases and zero suspicious lines. The packed
 fixture SHA-256 is
-`2A20060180EE2BD3A79E98149EA67885277DA992FD0170D3047EAA87EA69DE35`.
+`63F19B0741847F1D5A289DE1744C0C50DC6EA6A14B8C1C1768F5B68645AD13CB`.
 
 ## macOS universal
 
@@ -62,11 +65,11 @@ CI release gate.
 
 ## Deterministic archives and clean install
 
-Two clean-source package runs from `4e6a8c0` produced byte-identical archives:
+Two clean-source package runs from `f51be6ba` produced byte-identical archives:
 
 | Archive | Entries | Bytes | SHA-256 |
 | --- | ---: | ---: | --- |
-| Core | 78 | 10,420,307 | `4BAA00697195CF9EFDDC8DE38565D7528ABD5D967FFA04E5BBC4D22E6F261298` |
+| Core | 78 | 10,420,481 | `FF4E028C09784A1C0F83BBC1F0AB6EAF6D6BB0FBD046F22745F463E94D1FEE70` |
 | Demo | 171 | 3,733,279 | `30456BCF232E029368CBB9913F850581356C15A384F5E1CE3E4C0EB417ECC8A3` |
 
 The core archive was extracted into a new addon root. Windows and Ubuntu 24.04
@@ -81,8 +84,8 @@ authoring protocol or native Windows/macOS game exports.
 The 200-agent sample completed in 3,172 microseconds (Windows editor), 2,984
 microseconds (Windows release), 3,119 microseconds (Linux editor), and 2,566
 microseconds (Linux release). Archive clean-install samples also passed at
-5,467, 5,708, 3,142, and 3,866 microseconds respectively, and the packed Linux
-run completed in 2,678 microseconds. These are smoke samples, not the plan's
+3,796, 3,319, 3,299, and 2,906 microseconds respectively, and the packed Linux
+run completed in 2,583 microseconds. These are smoke samples, not the plan's
 required controlled warmup-plus-five performance claim.
 
 ## Gates not proven by this report

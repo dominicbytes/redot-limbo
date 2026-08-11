@@ -48,11 +48,11 @@ release.
 ## Final local archive result
 
 Both runs used clean source commit
-`4e6a8c0dfbb0ecbbdc1f61ba3f97542911754c75` and produced identical bytes:
+`f51be6ba2b2761234cfd6d804470a88379ce5538` and produced identical bytes:
 
 | Archive | Entries | Bytes | SHA-256 |
 | --- | ---: | ---: | --- |
-| `redot-limboai-1.6.0+redot.26.2.1-core.zip` | 78 | 10,420,307 | `4BAA00697195CF9EFDDC8DE38565D7528ABD5D967FFA04E5BBC4D22E6F261298` |
+| `redot-limboai-1.6.0+redot.26.2.1-core.zip` | 78 | 10,420,481 | `FF4E028C09784A1C0F83BBC1F0AB6EAF6D6BB0FBD046F22745F463E94D1FEE70` |
 | `redot-limboai-1.6.0+redot.26.2.1-demo.zip` | 171 | 3,733,279 | `30456BCF232E029368CBB9913F850581356C15A384F5E1CE3E4C0EB417ECC8A3` |
 
 The core inventory contains the six audited native libraries, MIT material,
