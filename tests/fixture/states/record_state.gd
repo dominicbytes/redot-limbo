@@ -10,6 +10,8 @@ func _setup() -> void:
 
 func _enter() -> void:
 	_record(&"enter")
+	if agent != null and agent.has_method(&"record_state_cargo"):
+		agent.call(&"record_state_cargo", label, get_cargo())
 
 
 func _update(_delta: float) -> void:

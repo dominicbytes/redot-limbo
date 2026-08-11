@@ -1,13 +1,15 @@
 # Redot LimboAI
 
-Redot LimboAI is a downstream GDExtension port of LimboAI 1.6.0 for Redot
+Redot LimboAI is a downstream GDExtension port of LimboAI 1.8.0 for Redot
 26.2. It provides behavior trees, blackboards, hierarchical state machines,
 the behavior-tree editor and debugger, runtime tree views, and typed-GDScript
 extension points while preserving the upstream public class and resource names.
 
-The downstream version is `1.6.0+redot.26.2.1`. The source baseline is upstream
-commit `91b22a187f7cd701e25eedd6dcff34179795e687`; the exact engine, API,
+The downstream version is `1.8.0+redot.26.2.1`. The source baseline is upstream
+commit `3fbd85118b924d50c10a495ad5c7175028649d77`; the exact engine, API,
 binding, toolchain, and license hashes are recorded in `UPSTREAM_LOCK.md`.
+Upstream 1.8 targets Godot 4.6 and includes 4.7 build compatibility; this
+downstream adapts that feature set to Redot 26.2's 4.5.2 API lineage.
 
 ## Install
 
@@ -48,7 +50,8 @@ selected profile differs from the lock.
 The deterministic GDExtension fixture covers class registration, blackboards,
 resource round trips, core task semantics, cloning, `BTPlayer`, multiple
 agents, all four custom-task categories, HSM/`BTState`, `BehaviorTreeView`, and
-a 200-agent runtime sample. Run the Python harness tests with:
+the 1.8 blackboard runtime-inspection and HSM transition-cargo APIs, plus a
+200-agent runtime sample. Run the Python harness tests with:
 
 ```text
 python -m unittest discover -s tests -p "test_*.py"
@@ -61,10 +64,15 @@ they are never inferred from a headless run.
 
 ## Scope
 
-This release is a desktop, single-precision GDExtension. It does not include a
-Redot engine-module build, C#/.NET support, mobile/Web binaries, or LimboAI
-1.7/1.8 features. See `COMPATIBILITY.md` and `LIMITATIONS.md` for the precise
-contract.
+This release contains the complete LimboAI 1.8 feature baseline as a desktop,
+single-precision GDExtension. It does not include a Redot engine-module build,
+C#/.NET support, or mobile/Web binaries. See `COMPATIBILITY.md` and
+`LIMITATIONS.md` for the precise contract.
+
+The adopted 1.8 editor surface includes the foldable task palette, a dedicated
+favorites section, modern flat-button layout, probability overlays, status
+highlight fixes, and debugger-backed blackboard runtime inspection. HSM event
+cargo is included and exercised by the deterministic runtime fixture.
 
 ## Upstream and licenses
 

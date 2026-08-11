@@ -11,12 +11,16 @@
 
 #include "limbo_state.h"
 
+#include "../compat/limbo_compat.h"
+
 #ifdef LIMBOAI_MODULE
 #include "core/config/engine.h"
+#include "core/object/class_db.h"
 #endif // LIMBOAI_MODULE
 
 #ifdef LIMBOAI_GDEXTENSION
 #include <godot_cpp/classes/engine.hpp>
+#include <godot_cpp/core/class_db.hpp>
 #endif
 
 void LimboState::restart() {
@@ -170,6 +174,11 @@ void LimboState::add_event_handler(const StringName &p_event, const Callable &p_
 	handlers.insert(p_event, p_handler);
 }
 
+void LimboState::remove_event_handler(const StringName &p_event) {
+	ERR_FAIL_COND(p_event == StringName());
+	handlers.erase(p_event);
+}
+
 bool LimboState::dispatch(const StringName &p_event, const Variant &p_cargo) {
 	return get_root()->_dispatch(p_event, p_cargo);
 }
@@ -217,6 +226,7 @@ void LimboState::_notification(int p_what) {
 }
 
 void LimboState::_bind_methods() {
+	ClassDB::bind_method(D_METHOD("get_cargo"), &LimboState::get_cargo);
 	ClassDB::bind_method(D_METHOD("restart"), &LimboState::restart);
 	ClassDB::bind_method(D_METHOD("get_root"), &LimboState::get_root);
 	ClassDB::bind_method(D_METHOD("get_agent"), &LimboState::get_agent);
@@ -227,6 +237,7 @@ void LimboState::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("dispatch", "event", "cargo"), &LimboState::dispatch, Variant());
 	ClassDB::bind_method(D_METHOD("named", "name"), &LimboState::named);
 	ClassDB::bind_method(D_METHOD("add_event_handler", "event", "handler"), &LimboState::add_event_handler);
+	ClassDB::bind_method(D_METHOD("remove_event_handler", "event"), &LimboState::remove_event_handler);
 	ClassDB::bind_method(D_METHOD("call_on_enter", "callable"), &LimboState::call_on_enter);
 	ClassDB::bind_method(D_METHOD("call_on_exit", "callable"), &LimboState::call_on_exit);
 	ClassDB::bind_method(D_METHOD("call_on_update", "callable"), &LimboState::call_on_update);
@@ -245,8 +256,8 @@ void LimboState::_bind_methods() {
 	GDVIRTUAL_BIND(_update, "delta");
 
 	ADD_PROPERTY(PropertyInfo(Variant::STRING_NAME, "EVENT_FINISHED", PROPERTY_HINT_NONE, "", 0), "", "event_finished");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "agent", PROPERTY_HINT_RESOURCE_TYPE, "Node", 0), "set_agent", "get_agent");
-	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "blackboard", PROPERTY_HINT_RESOURCE_TYPE, "Blackboard", 0), "", "get_blackboard");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "agent", PROPERTY_HINT_RESOURCE_TYPE, "Node", PROPERTY_USAGE_EDITOR_INSPECT()), "set_agent", "get_agent");
+	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "blackboard", PROPERTY_HINT_RESOURCE_TYPE, "Blackboard", PROPERTY_USAGE_EDITOR_INSPECT()), "", "get_blackboard");
 	ADD_PROPERTY(PropertyInfo(Variant::OBJECT, "blackboard_plan", PROPERTY_HINT_RESOURCE_TYPE, "BlackboardPlan", PROPERTY_USAGE_DEFAULT | PROPERTY_USAGE_ALWAYS_DUPLICATE), "set_blackboard_plan", "get_blackboard_plan");
 
 	ADD_SIGNAL(MethodInfo("setup"));
@@ -256,6 +267,7 @@ void LimboState::_bind_methods() {
 }
 
 LimboState::LimboState() {
+	cargo = Variant();
 	EVENT_FINISHED = StringName("finished_" + itos(get_instance_id()));
 	agent = nullptr;
 	active = false;

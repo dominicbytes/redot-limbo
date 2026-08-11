@@ -1,6 +1,6 @@
 # Upstream and dependency lock
 
-Lock date: 2026-08-10. All hashes are hexadecimal SHA-256 unless identified as
+Lock date: 2026-08-11. All hashes are hexadecimal SHA-256 unless identified as
 Git object IDs. The public release gate is not implied by this source lock.
 
 ## Source selection
@@ -9,19 +9,20 @@ Git object IDs. The public release gate is not implied by this source lock.
 | --- | --- |
 | Project | LimboAI |
 | Canonical repository | `https://github.com/limbonaut/limboai` |
-| Selected tag | `v1.6.0` |
-| Selected commit | `91b22a187f7cd701e25eedd6dcff34179795e687` |
-| Selected tree | `ef660c9ad2fbafb11cff12c12bad9774f52734d1` |
-| Newest evaluated tag | `v1.8.0` |
-| Newest commit | `3fbd85118b924d50c10a495ad5c7175028649d77` |
-| Newest tree | `6b7600efa803889a544b3683f2e7da59745e9ac0` |
+| Selected tag | `v1.8.0` |
+| Selected commit | `3fbd85118b924d50c10a495ad5c7175028649d77` |
+| Selected tree | `6b7600efa803889a544b3683f2e7da59745e9ac0` |
+| Compatibility checkpoint | `v1.6.0@91b22a187f7cd701e25eedd6dcff34179795e687` |
+| Compatibility-checkpoint tree | `ef660c9ad2fbafb11cff12c12bad9774f52734d1` |
 | Downstream branch | `port/redot-26.2` |
-| Downstream version | `1.6.0+redot.26.2.1` |
+| Downstream version | `1.8.0+redot.26.2.1` |
 
-`v1.8.0` was rejected as the baseline because it requires Godot API 4.6 and
-contains later 4.6/4.7 editor and content work. The newest viable 1.6 release
-built and ran unchanged under Godot 4.5.2 and Redot 26.2. Every later non-merge
-commit is dispositioned in
+The complete immutable `v1.8.0` tag is the feature baseline. It contains all
+48 non-merge commits after `v1.6.0`, including the 1.7 editor/debugger/HSM
+features and the 1.8 safety/build fixes. Upstream targets Godot 4.6 and carries
+4.7 build compatibility; this downstream preserves that source baseline while
+adapting only engine-facing incompatibilities proven against Redot 26.2's
+4.5.2 API lineage. The full adoption and downstream delta are recorded in
 `reports/api-diffs/limboai-newest-vs-selected.md`.
 
 ## Engine and ABI
@@ -43,19 +44,23 @@ evidence; a recursive comparison found no class, method, enum, singleton,
 utility, native-structure, or builtin-class delta, only official/custom build
 labels.
 
-## Oracle and build tools
+## Reference engines and build tools
 
 | Input | Locked value |
 | --- | --- |
-| Godot oracle | `4.5.2.stable.official.6ce3de25a`; SHA-256 `446E08F71624052572F96DE9031850BA96382CE6752ADDE38BB955B0A49BED01` |
-| Upstream Godot C++ oracle | tag `10.0.0-rc1`, commit `58d1de720b8ffe9f8ffcdfe3a85148582cfd2e74` |
-| Oracle API | Godot 4.4 JSON, SHA-256 `8A8386E3597083CF4357B3DBF501EDE3D38A4E3F7FF75DA86DFEF0D1D9C3E3A8` |
+| Redot API-lineage checkpoint | Godot `4.5.2.stable.official.6ce3de25a`; SHA-256 `446E08F71624052572F96DE9031850BA96382CE6752ADDE38BB955B0A49BED01` |
+| Compatibility-checkpoint Godot C++ | commit `58d1de720b8ffe9f8ffcdfe3a85148582cfd2e74` with Godot 4.4 API |
+| Compatibility-checkpoint API | SHA-256 `8A8386E3597083CF4357B3DBF501EDE3D38A4E3F7FF75DA86DFEF0D1D9C3E3A8` |
+| Upstream v1.8 Godot C++ reference | commit `5ffd70e34d0ab87009a9f0ffa3361bc8f4b09731`, Godot 4.6 API |
 | SCons | `4.10.1` |
 | Windows compiler | Visual Studio 2022 MSVC `19.44` |
 | Cross-build container | `ghcr.io/rust-cross/cargo-zigbuild@sha256:b8364c2c60cdcc9b95c402d17654bff517410926a35678bd89dd924b8158d6ae` |
 | CI checkout action | `actions/checkout@11d5960a326750d5838078e36cf38b85af677262` |
 | CI upload action | `actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02` |
 | CI download action | `actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093` |
+
+The Godot 4.5.2 fixture remains historical API-lineage evidence for the former
+1.6 checkpoint; it is not presented as an oracle for 1.8-only behavior.
 
 ## Rights lock
 

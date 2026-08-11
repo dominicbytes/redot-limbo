@@ -84,6 +84,12 @@
 				Events propagate from the leaf state to the root state, and propagation stops as soon as any state consumes the event. States will consume the event if they have a related transition or event handler. For more information on event handlers, see [method add_event_handler].
 			</description>
 		</method>
+		<method name="get_cargo">
+			<return type="Variant" />
+			<description>
+				Returns cargo passed to [method dispatch]. Available only during [method _enter].
+			</description>
+		</method>
 		<method name="get_root" qualifiers="const">
 			<return type="LimboState" />
 			<description>
@@ -101,6 +107,13 @@
 			<param index="0" name="name" type="String" />
 			<description>
 				A chained method for setting the name of this state.
+			</description>
+		</method>
+		<method name="remove_event_handler">
+			<return type="void" />
+			<param index="0" name="event" type="StringName" />
+			<description>
+				Unregisters event handler added by [method add_event_handler] (if it exists).
 			</description>
 		</method>
 		<method name="restart">
@@ -127,6 +140,7 @@
 		</member>
 		<member name="blackboard" type="Blackboard" setter="" getter="get_blackboard">
 			A key/value data store shared by states within the state machine to which this state belongs.
+			[b]Debugging:[/b] When debugging a running project, select a [LimboState] node in the Remote Scene Tree to see its properties in the remote Inspector. Click the [Blackboard] reference to inspect and edit variables across the full scope chain.
 		</member>
 		<member name="blackboard_plan" type="BlackboardPlan" setter="set_blackboard_plan" getter="get_blackboard_plan">
 			Stores and manages variables that will be used in constructing new [Blackboard] instances.

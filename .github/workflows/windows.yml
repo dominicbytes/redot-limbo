@@ -187,13 +187,14 @@ jobs:
 
     steps:
       - name: Clone Godot
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: godotengine/godot
           ref: ${{ inputs.godot-ref }}
+          fetch-tags: true
 
       - name: Clone LimboAI module
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           path: modules/limboai
 
@@ -202,7 +203,7 @@ jobs:
 
       - name: Set up scons cache
         if: inputs.test-build # ! Only cache test/PR builds
-        uses: actions/cache@v4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: ${{github.workspace}}/.scons_cache/
           key: ${{env.BIN}}-${{inputs.godot-ref}}-${{github.ref}}-${{env.LIMBOAI_VERSION}}
@@ -236,6 +237,12 @@ jobs:
       - name: Pull build container
         run: |
           podman pull ghcr.io/limbonaut/godot-windows:${{env.BUILD_IMAGE_VERSION}}
+
+      - name: Set up AccessKit SDK
+        run: python ./misc/scripts/install_accesskit.py
+
+      - name: Set up WinRT SDK
+        run: python ./misc/scripts/install_winrt.py
 
       - name: Build using container
         shell: bash
@@ -273,6 +280,7 @@ jobs:
           rm -f bin/*.{exp,lib,pdb,a}
           mkdir -p ${{env.OUTDIR}}
           rm -rf bin/obj/
+          rm -rf bin/build_deps/
           mv bin/* ${{env.OUTDIR}}
           ls -R out/
 
@@ -288,7 +296,7 @@ jobs:
           ls -R out/
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{env.NAME_PREFIX}}${{matrix.opts.dotnet == true && '.dotnet' || ''}}.${{matrix.opts.target}}.windows.${{matrix.opts.arch}}
           path: out/*
@@ -313,13 +321,14 @@ jobs:
       BIN: godot.windows.editor.${{matrix.opts.arch}}${{matrix.opts.llvm && '.llvm' || ''}}.mono
     steps:
       - name: Clone Godot
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           repository: godotengine/godot
           ref: ${{ inputs.godot-ref }}
+          fetch-tags: true
 
       - name: Clone LimboAI module
-        uses: actions/checkout@v4
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
         with:
           path: modules/limboai
 
@@ -332,7 +341,7 @@ jobs:
           echo "ARTIFACT=${{env.NAME_PREFIX}}.dotnet.editor.windows.${{matrix.opts.arch}}" >> $GITHUB_ENV
 
       - name: Download editor artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: ${{env.ARTIFACT}}
           path: bin/
@@ -344,7 +353,7 @@ jobs:
           bin: ${{env.BIN}}
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: ${{env.ARTIFACT}}
           overwrite: true

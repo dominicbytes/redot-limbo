@@ -14,6 +14,9 @@ SPEC.loader.exec_module(PACKAGE_RELEASE)
 
 
 class DeterministicPackageTests(unittest.TestCase):
+    def test_version_matches_the_redot_1_8_port(self) -> None:
+        self.assertEqual(PACKAGE_RELEASE.VERSION, "1.8.0+redot.26.2.1")
+
     def test_zip_bytes_are_reproducible(self) -> None:
         entries = {"b.txt": b"two\n", "a.txt": b"one\n"}
         with tempfile.TemporaryDirectory() as temporary_directory:

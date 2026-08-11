@@ -46,6 +46,9 @@ private:
 		Ref<Texture2D> icon_failure;
 
 		Ref<Font> font_custom_name;
+
+		int tree_inner_margin_top = 0;
+		int tree_inner_margin_bottom = 0;
 	} theme_cache;
 
 	Vector<uint64_t> collapsed_ids;
@@ -76,6 +79,8 @@ protected:
 public:
 	void clear();
 	void update_tree(const Ref<BehaviorTreeData> &p_data);
+
+	uint64_t get_selected_task_id() const;
 
 	void set_update_interval_msec(int p_milliseconds) { update_interval_msec = p_milliseconds; }
 	int get_update_interval_msec() const { return update_interval_msec; }

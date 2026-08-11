@@ -11,6 +11,15 @@
 
 #include "limbo_hsm.h"
 
+#ifdef LIMBOAI_MODULE
+#include "core/object/callable_mp.h"
+#include "core/object/class_db.h"
+#endif // LIMBOAI_MODULE
+
+#ifdef LIMBOAI_GDEXTENSION
+#include <godot_cpp/core/class_db.hpp>
+#endif // LIMBOAI_GDEXTENSION
+
 VARIANT_ENUM_CAST(LimboHSM::UpdateMode);
 
 void LimboHSM::set_active(bool p_active) {
@@ -46,6 +55,8 @@ void LimboHSM::change_active_state(LimboState *p_state) {
 	active_state->_enter();
 
 	emit_signal(LW_NAME(active_state_changed), active_state, previous_active);
+
+	active_state->_clear_cargo();
 }
 
 void LimboHSM::_enter() {
@@ -193,9 +204,11 @@ bool LimboHSM::_dispatch(const StringName &p_event, const Variant &p_cargo) {
 			}
 			if (permitted) {
 				if (!updating) {
+					to_state->_set_cargo(p_cargo);
 					change_active_state(to_state);
 				} else if (!next_active) {
 					// Only set next_active if we are not already in the process of changing states.
+					to_state->_set_cargo(p_cargo);
 					next_active = to_state;
 				}
 				event_consumed = true;
