@@ -6,6 +6,9 @@
 - Delivery is GDExtension-first. The optional upstream engine-module lane and
   its module-only test runner are not shipped.
 - Only Redot 26.2 single-precision desktop builds are in scope.
+- The provided Linux x86-64 libraries are built on Ubuntu 24.04 and require
+  glibc 2.38 or newer. Older distributions need a source rebuild on an older
+  compatible sysroot; no musl build is included.
 - C#/.NET examples and support are out of scope. Custom tasks and states are
   verified through typed GDScript.
 - The logo and demo/tutorial assets are not in the core archive. Install the

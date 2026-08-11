@@ -22,6 +22,8 @@ Use the core archive produced by `scripts/package_release.py`:
 The core archive is independent of the separately licensed demo and logo. It
 contains editor and template-release libraries for Windows x86-64, Linux
 x86-64, and macOS universal when the complete desktop gate has passed.
+The provided Linux binaries are built on Ubuntu 24.04 and require glibc 2.38
+or newer.
 
 ## Build from source
 
