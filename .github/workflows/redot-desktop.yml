@@ -1,0 +1,301 @@
+name: Redot 26.2 desktop GDExtension
+
+'on':
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  REDOT_CPP_REF: 598ec78e86b2c240a023f6de13daba70f7de8610
+  REDOT_API_SHA256: 177E7796166929B2193C9CCE2FD32F59601A0147D0D1E7FE904B94E8F69F6577
+  REDOT_INTERFACE_SHA256: 4CD695E86B92E2BF4E60BBE19CE137FAF41205DA1CF94F29E069AFEC0F7BF320
+  SCONS_VERSION: 4.10.1
+
+jobs:
+  windows-x86-64:
+    runs-on: windows-2022
+    timeout-minutes: 70
+    defaults:
+      run:
+        working-directory: plugins/redot-limboai
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          path: plugins/redot-limboai
+
+      - name: Checkout locked Redot C++ binding
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: Redot-Engine/redot-cpp
+          ref: 598ec78e86b2c240a023f6de13daba70f7de8610
+          path: plugins/redot-limboai/godot-cpp
+
+      - name: Download and verify Redot
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build/redot/editor | Out-Null
+          $archive = "build/redot/Redot_v26.2-stable_windows_win64.zip"
+          curl.exe --fail --location --output $archive "https://github.com/Redot-Engine/redot-engine/releases/download/redot-26.2-stable/Redot_v26.2-stable_windows_win64.zip"
+          $actual = (Get-FileHash -Algorithm SHA256 $archive).Hash
+          if ($actual -ne "4644C7591BBE8019B861DEB0CCDB64FD4F59A88514ABF7C788CF176C259855AF") {
+            throw "Redot archive hash mismatch: $actual"
+          }
+          Expand-Archive -LiteralPath $archive -DestinationPath build/redot/editor
+          $engine = (Get-ChildItem build/redot/editor -Recurse -Filter "redot.windows.editor.x86_64.console.exe" | Select-Object -First 1).FullName
+          if (-not $engine) { throw "Redot console launcher not found" }
+          if ((& $engine --version).Trim() -ne "26.2.stable.official.4f5b14aba") {
+            throw "Unexpected Redot version"
+          }
+          "REDOT_BIN=$engine" | Out-File $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Reproduce and install locked API
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force build/api | Out-Null
+          Push-Location build/api
+          & $env:REDOT_BIN --headless --dump-extension-api
+          if ($LASTEXITCODE -ne 0) { throw "API dump failed" }
+          & $env:REDOT_BIN --headless --dump-gdextension-interface
+          if ($LASTEXITCODE -ne 0) { throw "Interface dump failed" }
+          Pop-Location
+          $apiHash = (Get-FileHash -Algorithm SHA256 build/api/extension_api.json).Hash
+          if ($apiHash -ne $env:REDOT_API_SHA256) { throw "API hash mismatch: $apiHash" }
+          $interfaceHash = (Get-FileHash -Algorithm SHA256 godot-cpp/gdextension/gdextension_interface.h).Hash
+          if ($interfaceHash -ne $env:REDOT_INTERFACE_SHA256) { throw "Binding interface hash mismatch: $interfaceHash" }
+          Copy-Item -LiteralPath build/api/extension_api.json -Destination godot-cpp/gdextension/extension_api.json -Force
+
+      - name: Install locked SCons and prepare output
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check scons==$env:SCONS_VERSION
+          New-Item -ItemType Directory -Force build/ci-addon | Out-Null
+          python -m unittest discover -s tests -p "test_*.py"
+
+      - name: Build editor and template-release libraries
+        shell: cmd
+        run: |
+          call "%ProgramFiles%\Microsoft Visual Studio\2022\Enterprise\Common7\Tools\VsDevCmd.bat" -arch=x64
+          python -m SCons --project=build/ci-addon platform=windows target=editor arch=x86_64 -j2
+          if errorlevel 1 exit /b 1
+          python -m SCons --project=build/ci-addon platform=windows target=template_release arch=x86_64 -j2
+
+      - name: Audit and run both profiles
+        shell: pwsh
+        run: |
+          $editor = "build/ci-addon/addons/limboai/bin/liblimboai.windows.editor.x86_64.dll"
+          $release = "build/ci-addon/addons/limboai/bin/liblimboai.windows.template_release.x86_64.dll"
+          & scripts/audit_windows_binary.ps1 -Library @($editor, $release) | Tee-Object build/windows-binary-audit.log
+          python scripts/run_fixture.py --engine $env:REDOT_BIN --addon-project build/ci-addon --output ../build/redot-limboai/ci/windows-editor --label ci-windows-editor
+          if ($LASTEXITCODE -ne 0) { throw "Windows editor fixture failed" }
+          python scripts/run_fixture.py --engine $env:REDOT_BIN --addon-project build/ci-addon --output ../build/redot-limboai/ci/windows-release --label ci-windows-release --force-windows-release-library
+          if ($LASTEXITCODE -ne 0) { throw "Windows release fixture failed" }
+
+      - name: Upload Windows evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: redot-limboai-windows
+          path: |
+            plugins/redot-limboai/build/ci-addon/addons/limboai
+            plugins/redot-limboai/build/windows-binary-audit.log
+            plugins/build/redot-limboai/ci/windows-*
+          retention-days: 14
+
+  linux-x86-64:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 70
+    defaults:
+      run:
+        working-directory: plugins/redot-limboai
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          path: plugins/redot-limboai
+
+      - name: Checkout locked Redot C++ binding
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: Redot-Engine/redot-cpp
+          ref: 598ec78e86b2c240a023f6de13daba70f7de8610
+          path: plugins/redot-limboai/godot-cpp
+
+      - name: Download and verify Redot
+        run: |
+          mkdir -p build/redot/editor
+          archive="build/redot/Redot_v26.2-stable_linux_x64.zip"
+          curl --fail --location --output "$archive" "https://github.com/Redot-Engine/redot-engine/releases/download/redot-26.2-stable/Redot_v26.2-stable_linux_x64.zip"
+          echo "f474d890806c41af15513cf5a8600243e241882e11b68dbb95660e3465b5b1e4  $archive" | sha256sum --check --strict
+          unzip -q "$archive" -d build/redot/editor
+          engine="$(find build/redot/editor -type f -name 'redot.linuxbsd.editor.x86_64' -print -quit)"
+          test -n "$engine"
+          chmod +x "$engine"
+          test "$("$engine" --version)" = "26.2.stable.official.4f5b14aba"
+          echo "REDOT_BIN=$GITHUB_WORKSPACE/plugins/redot-limboai/$engine" >> "$GITHUB_ENV"
+
+      - name: Reproduce and install locked API
+        run: |
+          mkdir -p build/api
+          (cd build/api && "$REDOT_BIN" --headless --dump-extension-api)
+          (cd build/api && "$REDOT_BIN" --headless --dump-gdextension-interface)
+          echo "$REDOT_API_SHA256  build/api/extension_api.json" | sha256sum --check --strict
+          echo "$REDOT_INTERFACE_SHA256  godot-cpp/gdextension/gdextension_interface.h" | sha256sum --check --strict
+          cp build/api/extension_api.json godot-cpp/gdextension/extension_api.json
+
+      - name: Build, audit, and run both profiles
+        run: |
+          python3 -m pip install --disable-pip-version-check scons=="$SCONS_VERSION"
+          python3 -m unittest discover -s tests -p 'test_*.py'
+          mkdir -p build/ci-addon
+          python3 -m SCons --project=build/ci-addon platform=linux target=editor arch=x86_64 -j2
+          python3 -m SCons --project=build/ci-addon platform=linux target=template_release arch=x86_64 -j2
+          sh scripts/audit_linux_binary.sh \
+            build/ci-addon/addons/limboai/bin/liblimboai.linux.editor.x86_64.so \
+            build/ci-addon/addons/limboai/bin/liblimboai.linux.template_release.x86_64.so \
+            | tee build/linux-binary-audit.log
+          python3 scripts/run_fixture.py --engine "$REDOT_BIN" --addon-project build/ci-addon --output ../build/redot-limboai/ci/linux-editor --label ci-linux-editor
+          python3 scripts/run_fixture.py --engine "$REDOT_BIN" --addon-project build/ci-addon --output ../build/redot-limboai/ci/linux-release --label ci-linux-release --force-linux-release-library
+
+      - name: Upload Linux evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: redot-limboai-linux
+          path: |
+            plugins/redot-limboai/build/ci-addon/addons/limboai
+            plugins/redot-limboai/build/linux-binary-audit.log
+            plugins/build/redot-limboai/ci/linux-*
+          retention-days: 14
+
+  macos-universal:
+    runs-on: macos-14
+    timeout-minutes: 90
+    defaults:
+      run:
+        working-directory: plugins/redot-limboai
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          path: plugins/redot-limboai
+
+      - name: Checkout locked Redot C++ binding
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          repository: Redot-Engine/redot-cpp
+          ref: 598ec78e86b2c240a023f6de13daba70f7de8610
+          path: plugins/redot-limboai/godot-cpp
+
+      - name: Download and verify Redot
+        run: |
+          mkdir -p build/redot/editor
+          archive="build/redot/Redot_v26.2-stable_macos_universal.zip"
+          curl --fail --location --output "$archive" "https://github.com/Redot-Engine/redot-engine/releases/download/redot-26.2-stable/Redot_v26.2-stable_macos_universal.zip"
+          echo "128cb7bca69b95a3998a84e72b0990a302ce5b1919dfb56cfdc709c2c87925ae  $archive" | shasum -a 256 --check
+          ditto -x -k "$archive" build/redot/editor
+          engine="$(find build/redot/editor -type f -path '*.app/Contents/MacOS/*' -print -quit)"
+          test -n "$engine"
+          chmod +x "$engine"
+          xattr -dr com.apple.quarantine "$(dirname "$(dirname "$(dirname "$engine")")")" || true
+          test "$("$engine" --version)" = "26.2.stable.official.4f5b14aba"
+          echo "REDOT_BIN=$GITHUB_WORKSPACE/plugins/redot-limboai/$engine" >> "$GITHUB_ENV"
+
+      - name: Reproduce and install locked API
+        run: |
+          mkdir -p build/api
+          (cd build/api && "$REDOT_BIN" --headless --dump-extension-api)
+          (cd build/api && "$REDOT_BIN" --headless --dump-gdextension-interface)
+          echo "$REDOT_API_SHA256  build/api/extension_api.json" | shasum -a 256 --check
+          echo "$REDOT_INTERFACE_SHA256  godot-cpp/gdextension/gdextension_interface.h" | shasum -a 256 --check
+          cp build/api/extension_api.json godot-cpp/gdextension/extension_api.json
+
+      - name: Build, audit, and run both profiles
+        run: |
+          python3 -m pip install --disable-pip-version-check scons=="$SCONS_VERSION"
+          python3 -m unittest discover -s tests -p 'test_*.py'
+          mkdir -p build/ci-addon
+          python3 -m SCons --project=build/ci-addon platform=macos target=editor arch=universal -j2
+          python3 -m SCons --project=build/ci-addon platform=macos target=template_release arch=universal -j2
+          for library in \
+            build/ci-addon/addons/limboai/bin/liblimboai.macos.editor.framework/liblimboai.macos.editor \
+            build/ci-addon/addons/limboai/bin/liblimboai.macos.template_release.framework/liblimboai.macos.template_release; do
+            archs="$(lipo -archs "$library")"
+            test "$archs" = "x86_64 arm64" || test "$archs" = "arm64 x86_64"
+            nm -gj "$library" | grep '^_limboai_init$'
+            otool -L "$library"
+            if strings -a "$library" | grep -E '/Users/runner|/workspace|LIMBOAI_FIXTURE|ghp_|BEGIN (RSA|OPENSSH|EC) PRIVATE'; then
+              echo "Forbidden embedded string in $library" >&2
+              exit 4
+            fi
+          done | tee build/macos-binary-audit.log
+          python3 scripts/run_fixture.py --engine "$REDOT_BIN" --addon-project build/ci-addon --output ../build/redot-limboai/ci/macos-editor --label ci-macos-editor
+          python3 scripts/run_fixture.py --engine "$REDOT_BIN" --addon-project build/ci-addon --output ../build/redot-limboai/ci/macos-release --label ci-macos-release --force-macos-release-library
+
+      - name: Upload macOS evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: redot-limboai-macos
+          path: |
+            plugins/redot-limboai/build/ci-addon/addons/limboai
+            plugins/redot-limboai/build/macos-binary-audit.log
+            plugins/build/redot-limboai/ci/macos-*
+          retention-days: 14
+
+  deterministic-packages:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    needs: [windows-x86-64, linux-x86-64, macos-universal]
+    defaults:
+      run:
+        working-directory: plugins/redot-limboai
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+          path: plugins/redot-limboai
+
+      - name: Download Windows addon
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: redot-limboai-windows
+          path: plugins/build/artifacts/windows
+
+      - name: Download Linux addon
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: redot-limboai-linux
+          path: plugins/build/artifacts/linux
+
+      - name: Download macOS addon
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: redot-limboai-macos
+          path: plugins/build/artifacts/macos
+
+      - name: Locate addons and package twice
+        run: |
+          windows_addon="$(find ../build/artifacts/windows -type d -path '*/addons/limboai' -print -quit)"
+          linux_addon="$(find ../build/artifacts/linux -type d -path '*/addons/limboai' -print -quit)"
+          macos_addon="$(find ../build/artifacts/macos -type d -path '*/addons/limboai' -print -quit)"
+          test -n "$windows_addon" && test -n "$linux_addon" && test -n "$macos_addon"
+          python3 scripts/package_release.py --windows-addon "$windows_addon" --linux-addon "$linux_addon" --macos-addon "$macos_addon" --output ../build/package-a
+          python3 scripts/package_release.py --windows-addon "$windows_addon" --linux-addon "$linux_addon" --macos-addon "$macos_addon" --output ../build/package-b
+          cmp ../build/package-a/redot-limboai-1.6.0+redot.26.2.1-core.zip ../build/package-b/redot-limboai-1.6.0+redot.26.2.1-core.zip
+          cmp ../build/package-a/redot-limboai-1.6.0+redot.26.2.1-demo.zip ../build/package-b/redot-limboai-1.6.0+redot.26.2.1-demo.zip
+          cmp ../build/package-a/release-manifest.json ../build/package-b/release-manifest.json
+
+      - name: Upload deterministic packages
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: redot-limboai-desktop-packages
+          path: plugins/build/package-a
+          retention-days: 14

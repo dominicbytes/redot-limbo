@@ -4,32 +4,29 @@ major = 1
 minor = 6
 patch = 0
 status = ""
+downstream = "redot.26.2.1"
 doc_branch = "v1.6.0"
-
-
-def get_godot_cpp_ref():
-    import os
-
-    deps_env_path = os.path.join(os.path.dirname(__file__), "deps.env")
-    with open(deps_env_path, "r") as f:
-        for line in f:
-            if line.startswith("GODOT_CPP_REF="):
-                return line.strip().split("=", 1)[1]
-    return "unknown"
-
 
 # *** Code that generates version header
 
 
 def _git_hash(short: bool = False):
+    import os
     import subprocess
 
     ret = "unknown"
     try:
+        repo_dir = os.path.dirname(os.path.abspath(__file__))
         if short:
-            cmd = ["git", "rev-parse", "--short", "HEAD"]
+            cmd = [
+                "git", "-c", f"safe.directory={repo_dir}", "-C", repo_dir,
+                "rev-parse", "--short", "HEAD"
+            ]
         else:
-            cmd = ["git", "rev-parse", "HEAD"]
+            cmd = [
+                "git", "-c", f"safe.directory={repo_dir}", "-C", repo_dir,
+                "rev-parse", "HEAD"
+            ]
         proc = subprocess.Popen(cmd, stdout=subprocess.PIPE)
         ret = proc.communicate()[0].strip().decode("utf-8")
     except:
@@ -43,6 +40,7 @@ def _get_version_info():
         "minor": minor,
         "patch": patch,
         "status": status,
+        "downstream": downstream,
         "doc_branch": doc_branch,
         "git_short_hash": _git_hash(short=True),
         "git_hash": _git_hash(short=False),
@@ -61,6 +59,7 @@ def generate_module_version_header():
 #define LIMBOAI_VERSION_MINOR {minor}
 #define LIMBOAI_VERSION_PATCH {patch}
 #define LIMBOAI_VERSION_STATUS "{status}"
+#define LIMBOAI_VERSION_DOWNSTREAM "{downstream}"
 
 #define LIMBOAI_VERSION_HASH "{git_hash}"
 #define LIMBOAI_VERSION_SHORT_HASH "{git_short_hash}"

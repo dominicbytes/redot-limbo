@@ -10,28 +10,16 @@ Use --project=DIR to customize output path for built targets.
  - If not specified, built targets are put into the demo/ project.
 """
 
+import hashlib
 import os
 import subprocess
 import sys
 
-from limboai_version import generate_module_version_header, get_godot_cpp_ref
+from limboai_version import generate_module_version_header
 
 sys.path.append("gdextension")
 from fix_icon_imports import fix_icon_imports
 from update_icon_entries import update_icon_entries
-
-# Check if godot-cpp/ exists
-if not os.path.exists("godot-cpp"):
-    print("Directory godot-cpp/ not found. Cloning repository...")
-    result = subprocess.run(
-        ["git", "clone", "-b", get_godot_cpp_ref(), "https://github.com/godotengine/godot-cpp.git"],
-        check=True,
-        # capture_output=True
-    )
-    if result.returncode != 0:
-        print("Error: Cloning godot-cpp repository failed.")
-        Exit(1)
-    print("Finished cloning godot-cpp repository.")
 
 AddOption(
     "--project",
@@ -44,12 +32,98 @@ AddOption(
     help="Specify project directory",
 )
 
+AddOption(
+    "--binding-profile",
+    dest="binding_profile",
+    type="choice",
+    choices=("redot", "godot-oracle"),
+    nargs=1,
+    action="store",
+    default="redot",
+    help="Select the locked C++ binding contract (default: redot)",
+)
+
 help_text = """
 Options:
   --project=DIR     Specify project directory (default: "demo");
                     built targets will be placed in DIR/addons/limboai/bin
+  --binding-profile=PROFILE
+                    Locked binding contract: redot or godot-oracle
 """
 Help(help_text)
+
+
+def read_dependency_lock(name):
+    with open("deps.env", "r", encoding="utf-8") as deps_file:
+        for line in deps_file:
+            if line.startswith(name + "="):
+                return line.strip().split("=", 1)[1]
+    print("Dependency lock not found in deps.env: " + name)
+    Exit(1)
+
+
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as source_file:
+        for chunk in iter(lambda: source_file.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest().upper()
+
+
+def verify_binding_checkout(profile):
+    binding_dir = os.path.abspath("godot-cpp")
+    if not os.path.isdir(binding_dir):
+        print("Locked binding checkout not found: " + binding_dir)
+        print("Populate godot-cpp/ with the exact checkout recorded in deps.env.")
+        Exit(1)
+
+    if profile == "redot":
+        expected_ref = read_dependency_lock("REDOT_CPP_REF")
+        api_path = os.path.join(binding_dir, "gdextension", "extension_api.json")
+        expected_api = read_dependency_lock("REDOT_EXTENSION_API_SHA256")
+        interface_path = os.path.join(binding_dir, "gdextension", "gdextension_interface.h")
+        expected_interface = read_dependency_lock("REDOT_GDEXTENSION_INTERFACE_SHA256")
+    else:
+        expected_ref = read_dependency_lock("GODOT_CPP_ORACLE_REF")
+        api_version = read_dependency_lock("GODOT_CPP_ORACLE_API_VERSION")
+        if ARGUMENTS.get("api_version") != api_version:
+            print("godot-oracle requires api_version=" + api_version)
+            Exit(1)
+        api_path = os.path.join(binding_dir, "gdextension", "extension_api-4-4.json")
+        expected_api = read_dependency_lock("GODOT_CPP_ORACLE_API_SHA256")
+        interface_path = None
+        expected_interface = None
+
+    result = subprocess.run(
+        [
+            "git", "-c", "safe.directory=" + binding_dir, "-C", binding_dir,
+            "rev-parse", "HEAD",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+    actual_ref = result.stdout.strip()
+    if result.returncode != 0 or actual_ref != expected_ref:
+        print("Binding commit mismatch: expected " + expected_ref + ", got " + actual_ref)
+        Exit(1)
+
+    actual_api = sha256_file(api_path)
+    if actual_api != expected_api:
+        print("Binding API mismatch: expected " + expected_api + ", got " + actual_api)
+        Exit(1)
+
+    if interface_path is not None:
+        actual_interface = sha256_file(interface_path)
+        if actual_interface != expected_interface:
+            print("GDExtension interface mismatch: expected " + expected_interface + ", got " + actual_interface)
+            Exit(1)
+
+    print("Verified locked " + profile + " binding: " + actual_ref)
+
+
+binding_profile = GetOption("binding_profile")
+verify_binding_checkout(binding_profile)
 
 project_dir = GetOption("project")
 if not os.path.isdir(project_dir):
@@ -83,6 +157,11 @@ for o in vars.options:
 # - LINKFLAGS are for linking flags
 
 env = SConscript("godot-cpp/SConstruct")
+
+# Error macros embed __FILE__. Keep Windows release artifacts independent of the
+# checkout location while preserving paths relative to this source root.
+if env["platform"] == "windows":
+    env.Append(CCFLAGS=["/d1trimfile:" + os.path.abspath(".")])
 
 # Generate version header.
 print("Generating LimboAI version header...")
