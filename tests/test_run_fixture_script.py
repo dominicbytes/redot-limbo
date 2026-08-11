@@ -58,6 +58,32 @@ class ForceReleaseLibraryTests(unittest.TestCase):
                 self.assertEqual(Path(environment[name]), location)
                 self.assertTrue(location.is_dir())
 
+    def test_parses_exactly_one_machine_readable_stdout_result(self) -> None:
+        output = (
+            "Redot Engine LTS\n"
+            'LIMBOAI_FIXTURE_RESULT {"case_count":13,"failures":[],"passed":true}\n'
+        )
+
+        result = RUN_FIXTURE.parse_result_from_output(output)
+
+        self.assertEqual(result["case_count"], 13)
+        self.assertTrue(result["passed"])
+
+    def test_stdout_result_rejects_missing_or_duplicate_payloads(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "found 0"):
+            RUN_FIXTURE.parse_result_from_output("Redot Engine LTS\n")
+
+        duplicate = (
+            'LIMBOAI_FIXTURE_RESULT {"passed":true}\n'
+            'LIMBOAI_FIXTURE_RESULT {"passed":true}\n'
+        )
+        with self.assertRaisesRegex(RuntimeError, "found 2"):
+            RUN_FIXTURE.parse_result_from_output(duplicate)
+
+    def test_stdout_result_requires_a_json_object(self) -> None:
+        with self.assertRaisesRegex(RuntimeError, "must be a JSON object"):
+            RUN_FIXTURE.parse_result_from_output("LIMBOAI_FIXTURE_RESULT true\n")
+
 
 if __name__ == "__main__":
     unittest.main()

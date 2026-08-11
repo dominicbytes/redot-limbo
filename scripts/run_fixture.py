@@ -20,6 +20,7 @@ FAILURE_PATTERN = re.compile(
     re.IGNORECASE,
 )
 EDITOR_SETTLE_FRAMES = 120
+RESULT_PREFIX = "LIMBOAI_FIXTURE_RESULT "
 
 
 def sha256(path: Path) -> str:
@@ -81,6 +82,22 @@ def find_result(state_root: Path) -> Path:
     if len(matches) != 1:
         raise RuntimeError(f"Expected one fixture-result.json under {state_root}, found {len(matches)}")
     return matches[0]
+
+
+def parse_result_from_output(output_text: str) -> dict[str, object]:
+    payloads = [
+        line.removeprefix(RESULT_PREFIX)
+        for line in output_text.splitlines()
+        if line.startswith(RESULT_PREFIX)
+    ]
+    if len(payloads) != 1:
+        raise RuntimeError(
+            f"Expected one {RESULT_PREFIX.strip()} line, found {len(payloads)}"
+        )
+    result = json.loads(payloads[0])
+    if not isinstance(result, dict):
+        raise RuntimeError(f"{RESULT_PREFIX.strip()} payload must be a JSON object")
+    return result
 
 
 def isolated_environment(state_root: Path) -> dict[str, str]:
@@ -243,12 +260,20 @@ def main() -> int:
 
     result_path = None
     result = None
+    result_source = None
     try:
         result_path = find_result(state_root)
         result = json.loads(result_path.read_text(encoding="utf-8"))
-    except (OSError, ValueError, RuntimeError) as error:
-        result_error = str(error)
+    except (OSError, ValueError, RuntimeError) as file_error:
+        try:
+            result = parse_result_from_output(output_text)
+        except (ValueError, RuntimeError) as output_error:
+            result_error = f"{file_error}; {output_error}"
+        else:
+            result_source = "stdout"
+            result_error = None
     else:
+        result_source = "file"
         result_error = None
 
     suspicious_lines = [
@@ -287,6 +312,7 @@ def main() -> int:
         "selected_library_sha256": sha256(selected_library) if selected_library else None,
         "forced_release_platform": forced_release_platform,
         "result_path": str(result_path) if result_path else None,
+        "result_source": result_source,
         "result_error": result_error,
         "result": result,
         "suspicious_log_lines": suspicious_lines,
