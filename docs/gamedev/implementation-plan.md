@@ -4,8 +4,8 @@
 - Project: `plugins/redot-limboai`
 - Target: Redot 26.2 LTS (`26.2.stable.official.4f5b14aba`; Godot/GDExtension lineage `4.5.2 stable`)
 - Local research snapshot: `limbonaut/limboai@a6f5c7fc11ff80d512dd75c82cfa85724fd8a742` on `master`
-- Candidate compatibility baseline: `v1.6.0@91b22a187f7cd701e25eedd6dcff34179795e687`, pending a full-history checkout and baseline build
-- Status: implementation-ready plan; source selection, API-exception acceptance, and build proof are the first gates
+- Selected compatibility baseline: `v1.6.0@91b22a187f7cd701e25eedd6dcff34179795e687`
+- Status: local implementation/package evidence complete; visible editor, controlled performance, native macOS, native Windows/macOS export, and publication gates remain
 - Scope authority: [preflight report](preflight-report.md) and [porting specification](../../../redot_plugin_porting_codex_spec.md), section 10
 
 ## Planning state
@@ -242,7 +242,7 @@ Adopt the upstream data model, editor experience, docs, and test semantics. Adap
 | MS-025 | 3 | **First end-to-end vertical slice.** A developer creates/saves a small tree, runs it through `BTPlayer`, observes deterministic state/blackboard output, and inspects it live. | MS-015; GNT-01 oracle frozen. | Minimum fixture/capture harness; Godot/Redot semantic fingerprints and tick traces; editor/debugger captures; GNT-01 PASS. | Automated slice complete; BLOCKED on visible debugger evidence |
 | MS-035 | 4 | **Behavior-tree and blackboard parity.** Built-in task families, interruption, blackboards, subtrees, multi-agent behavior, custom GDScript task categories, and runtime view pass. | MS-025. | Machine-readable scenario matrix; upstream native-test mapping; resource and extension-point reports; GNT-02 PASS. | Representative implementation complete; BLOCKED on full coverage/performance matrix |
 | MS-045 | 5 | **HSM, migration, and editor parity.** Nested HSMs, events, callbacks, `BTState`, custom states, migrated resources, editor lifecycle, debugger, monitors, and accessibility pass. | MS-035. | Migration matrix; editor checklist/captures; lifecycle counts; performance sample; GNT-03 PASS. | Automated HSM/migration complete; BLOCKED on visible editor protocol |
-| MS-055 | 6 | **Desktop release candidate.** Windows/Linux/macOS packages build, audit, install, export, and document the exact supported scope. | MS-045; hosted macOS runner; publication authorization for release step. | Platform binaries/dependencies; clean-install/export logs; notices/checksums; upstream-sync dry run; GNT-04 PASS. | Six binaries built/audited; BLOCKED on native macOS and release gates |
+| MS-055 | 6 | **Desktop release candidate.** Windows/Linux/macOS packages build, audit, install, export, and document the exact supported scope. | MS-045; hosted macOS runner; publication authorization for release step. | Platform binaries/dependencies; clean-install/export logs; notices/checksums; upstream-sync dry run; GNT-04 PASS. | Six binaries, deterministic archives, Windows/Linux headless clean installs, and Linux packed runtime complete; BLOCKED on native macOS and remaining release gates |
 
 ## 10. Task breakdown
 
@@ -384,14 +384,14 @@ Each result records source/engine/API/binding hashes, platform/architecture/prec
 
 | ID | Risk or open question | Impact | Mitigation / owner | Blocking state and deadline |
 | --- | --- | --- | --- | --- |
-| RSK-001 | Is `v1.6.0` the final baseline, or does another stable/1.6.x source pass better? | Wrong source choice or false parity claim. | Execute the mandated baseline matrix and omissions report. Owner: Codex. | Open; blocks the first port patch. |
-| RSK-002 | Editor APIs or resource serialization differ despite API lineage. | Data loss, editor crash, or migration failure. | GNT-01/GNT-03 contract, lifecycle, and semantic fingerprint gates. Owner: Codex. | Open; blocks MS-025/MS-045 claims. |
-| RSK-003 | Demo/logo files are packaged without complete CC BY attribution. | Legal/release failure. | Separate core/demo packages and file-level license inventory. Owner: Codex. | Open; blocks LIM-020. |
-| RSK-004 | Official Redot API dumping crashes and local API files disagree. | Binding provenance or ABI uncertainty. | Reconcile engine source, Redot C++ API/interface, both artifacts, compile/load/runtime proof, and an accepted ADR. Owner: Codex. | Open; blocks LIM-005. |
+| RSK-001 | Is `v1.6.0` the final baseline, or does another stable/1.6.x source pass better? | Wrong source choice or false parity claim. | Execute the mandated baseline matrix and omissions report. Owner: Codex. | Resolved; v1.6.0 selected and newest comparison retained. |
+| RSK-002 | Editor APIs or resource serialization differ despite API lineage. | Data loss, editor crash, or migration failure. | GNT-01/GNT-03 contract, lifecycle, and semantic fingerprint gates. Owner: Codex. | Mitigated by round-trip/runtime proof; visible editor gate remains. |
+| RSK-003 | Demo/logo files are packaged without complete CC BY attribution. | Legal/release failure. | Separate core/demo packages and file-level license inventory. Owner: Codex. | Resolved for the final local archives. |
+| RSK-004 | Official Redot API dumping crashes and local API files disagree. | Binding provenance or ABI uncertainty. | Reconcile engine source, Redot C++ API/interface, both artifacts, compile/load/runtime proof, and an accepted ADR. Owner: Codex. | Resolved by accepted API provenance and compile/load/runtime proof. |
 | RSK-005 | Upstream native tests are module-oriented while first delivery is GDExtension. | Important semantics may be untested. | Run native tests on selected upstream baseline; map every case; reproduce critical behavior in deterministic extension fixtures. Owner: Codex. | Open; blocks behavior parity. |
-| RSK-006 | Windows/Linux/macOS toolchains or native outputs diverge. | Incomplete desktop release. | Same source/API locks, clean platform CI, manifest and dependency audit. Owner: Codex. | Open; blocks GNT-04/public release. |
-| RSK-007 | Later 1.7/1.8 features or fixes are expected by users. | Misleading scope and maintenance pressure. | Publish exact newest-vs-selected table; backport only isolated tested fixes. Owner: Codex. | Open; blocks documentation, not MS-025. |
-| RSK-008 | Public downstream repository/authentication is absent. | Cannot publish source/tag/release. | Owner chooses and authorizes the repository. Owner: DominicBytes. | Open; blocks LIM-021 only. |
+| RSK-006 | Windows/Linux/macOS toolchains or native outputs diverge. | Incomplete desktop release. | Same source/API locks, clean platform CI, manifest and dependency audit. Owner: Codex. | Blocked on native macOS runtime; all six local structures pass. |
+| RSK-007 | Later 1.7/1.8 features or fixes are expected by users. | Misleading scope and maintenance pressure. | Publish exact newest-vs-selected table; backport only isolated tested fixes. Owner: Codex. | Mitigated by exact version and omissions documentation. |
+| RSK-008 | Public downstream repository/authentication is absent. | Cannot publish source/tag/release. | Owner chooses and authorizes the repository. Owner: DominicBytes. | Blocked; publication only. |
 | RSK-009 | Editor debugger or 200-agent runtime performance regresses. | Poor usability or scalability. | Freeze same-machine baseline and enforce GNT-02/GNT-03 tolerances. Owner: Codex. | Open; blocks relevant parity/release claim. |
 
 No design fog blocks MS-005. The exact source patch and later lanes are deliberately evidence-dependent rather than silently assumed.

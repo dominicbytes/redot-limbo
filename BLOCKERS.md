@@ -27,10 +27,10 @@ locks are complete.
 
 - Owner: Codex / authorized test host
 - State: open gate
-- Existing evidence: deterministic 32-agent isolation and four final
-  200-agent Windows/Linux samples pass, but the plan's warmup plus five
-  comparable runs and
-  debugger/editor p95 measurements are not complete.
+- Existing evidence: deterministic 32-agent isolation plus final-build,
+  archive-clean-install, and packed-runtime 200-agent smoke samples pass, but
+  the plan's controlled warmup plus five comparable runs and debugger/editor
+  p95 measurements are not complete.
 - Release impact: blocks GNT-02/GNT-03 performance claims.
 
 ## BLOCK-PUBLICATION: Repository and release authorization absent

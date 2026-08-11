@@ -6,7 +6,8 @@ Scope: headless/static automated evidence only.
 ## Locked source and engine
 
 - Runtime source commit: `2e32af7802ef1d1fa8cd1b3d1e0a77b438b36398`.
-- Validation/documentation commit: `d35033e`.
+- Harness hardening commit: `d35033e`.
+- Clean package source commit: `4e6a8c0dfbb0ecbbdc1f61ba3f97542911754c75`.
 - Redot: `26.2.stable.official.4f5b14aba`.
 - Redot C++: `598ec78e86b2c240a023f6de13daba70f7de8610`.
 - Official API SHA-256:
@@ -40,8 +41,10 @@ Both shared objects are stripped ELF64 x86-64, export `limboai_init`, and
 require only `libm.so.6`, `libc.so.6`, and `ld-linux-x86-64.so.2`. The Redot
 Linux editor SHA-256 is
 `11D299E0F01A63574E612C64718CA3037A65540139DEC7B93A87650EE9AAB2F3`.
-The exact release binary is unchanged from the previously passing packed PCK
-runtime; final archive assembly will repeat that packed-runtime check.
+The exact release binary extracted from the final core archive also passes an
+89-file packed PCK run with all 11 cases and zero suspicious lines. The packed
+fixture SHA-256 is
+`2A20060180EE2BD3A79E98149EA67885277DA992FD0170D3047EAA87EA69DE35`.
 
 ## macOS universal
 
@@ -57,12 +60,30 @@ an ad-hoc code-signature command for arm64 but not x86-64; neither constitutes
 Developer ID signing or notarization. Native macOS execution remains a hosted
 CI release gate.
 
+## Deterministic archives and clean install
+
+Two clean-source package runs from `4e6a8c0` produced byte-identical archives:
+
+| Archive | Entries | Bytes | SHA-256 |
+| --- | ---: | ---: | --- |
+| Core | 78 | 10,420,307 | `4BAA00697195CF9EFDDC8DE38565D7528ABD5D967FFA04E5BBC4D22E6F261298` |
+| Demo | 171 | 3,733,279 | `30456BCF232E029368CBB9913F850581356C15A384F5E1CE3E4C0EB417ECC8A3` |
+
+The core archive was extracted into a new addon root. Windows and Ubuntu 24.04
+editor/template-release runs each passed all 11 cases with zero suspicious
+lines. The forced release runs selected the exact packaged Windows and Linux
+release hashes listed above. This proves headless initialization and runtime
+behavior from the archive; it does not substitute for the visible editor
+authoring protocol or native Windows/macOS game exports.
+
 ## Performance samples
 
 The 200-agent sample completed in 3,172 microseconds (Windows editor), 2,984
 microseconds (Windows release), 3,119 microseconds (Linux editor), and 2,566
-microseconds (Linux release). These are smoke samples, not the plan's required
-warmup-plus-five performance claim.
+microseconds (Linux release). Archive clean-install samples also passed at
+5,467, 5,708, 3,142, and 3,866 microseconds respectively, and the packed Linux
+run completed in 2,678 microseconds. These are smoke samples, not the plan's
+required controlled warmup-plus-five performance claim.
 
 ## Gates not proven by this report
 

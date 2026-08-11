@@ -17,6 +17,12 @@
 - [x] Cross-build and structurally audit macOS universal editor and
   template-release frameworks with stable install identities.
 - [x] Implement pinned native desktop CI and deterministic core/demo packaging.
+- [x] Produce core/demo archives twice from clean commit `4e6a8c0` and verify
+  byte-identical output plus file-level rights inventories.
+- [x] Extract the final core archive and pass all 11 cases with zero suspicious
+  lines on Windows and Ubuntu 24.04 editor/template-release runs.
+- [x] Rebuild and pass the 89-file packed Linux fixture from the final core
+  archive's exact release library.
 - [x] Classify source, logo, demo graphics, and both font licenses.
 - [x] Write compatibility, limitations, migration, notices, and package docs.
 
@@ -25,13 +31,14 @@
 - [ ] Run the native macOS CI job and retain universal binary/runtime evidence.
 - [ ] Complete GNT-03's visible editor, accessibility, debugger, and lifecycle
   session at both UI profiles.
-- [ ] Complete the plan's full five-run performance/oracle matrix; four final
-  200-agent smoke samples pass but do not satisfy that claim.
-- [ ] Run deterministic packaging twice from a clean, committed source after
-  all three platform jobs pass.
-- [ ] Run and record clean-install authoring plus native Windows/macOS game
-  exports; Linux packed runtime evidence already passes.
-- [ ] Reconcile final archive hashes into the source-of-truth workbook after
-  the clean double-package run; platform hashes and verdicts are current.
+- [ ] Complete the plan's full five-run performance/oracle matrix; automated
+  200-agent smoke samples pass but do not satisfy that controlled claim.
+- [ ] Rerun deterministic packaging if native macOS CI changes either audited
+  macOS framework; current local archives already match across two clean runs.
+- [ ] Run and record visible clean-install authoring plus native Windows/macOS
+  game exports; headless Windows/Linux clean installs and Linux packed runtime
+  already pass.
+- [x] Reconcile final platform/archive hashes and verdicts into the
+  source-of-truth workbook.
 - [ ] Obtain explicit owner authorization before any push, tag, public release,
   signing, or notarization action.

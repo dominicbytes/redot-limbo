@@ -1,8 +1,7 @@
 # Package rights and content audit
 
 Date: 2026-08-11
-Status: PASS for classification and package rules; final archive hashes wait
-for the clean double-package job.
+Status: PASS for classification, package rules, and final local archives.
 
 ## Rights sources
 
@@ -45,3 +44,20 @@ Every archive entry receives a path, SHA-256, size, and license classification
 in `release-manifest.json`. Two packaging runs are byte-compared locally and in
 CI before artifacts are accepted. The workflow never publishes a GitHub
 release.
+
+## Final local archive result
+
+Both runs used clean source commit
+`4e6a8c0dfbb0ecbbdc1f61ba3f97542911754c75` and produced identical bytes:
+
+| Archive | Entries | Bytes | SHA-256 |
+| --- | ---: | ---: | --- |
+| `redot-limboai-1.6.0+redot.26.2.1-core.zip` | 78 | 10,420,307 | `4BAA00697195CF9EFDDC8DE38565D7528ABD5D967FFA04E5BBC4D22E6F261298` |
+| `redot-limboai-1.6.0+redot.26.2.1-demo.zip` | 171 | 3,733,279 | `30456BCF232E029368CBB9913F850581356C15A384F5E1CE3E4C0EB417ECC8A3` |
+
+The core inventory contains the six audited native libraries, MIT material,
+and approved addon documentation/icons only. The logo, demo, fonts, fixture,
+test, cache, source checkout, credentials, and local build paths are absent.
+The demo inventory contains no native addon or build cache. The package scan
+and clean-install runtime checks pass; publication remains a separate owner
+gate.
