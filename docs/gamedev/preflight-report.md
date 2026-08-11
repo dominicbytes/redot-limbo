@@ -7,8 +7,19 @@
 - Original specification priority: 4
 - Target: Redot 26.2 LTS; the program spec identifies Godot API lineage 4.5.2.
 - Local source snapshot: GitHub branch master, commit a6f5c7fc11ff80d512dd75c82cfa85724fd8a742
-- Candidate baseline: v1.6.0 candidate, tag 91b22a187f7cd701e25eedd6dcff34179795e687
+- Original compatibility candidate: v1.6.0, tag 91b22a187f7cd701e25eedd6dcff34179795e687
+- Owner-selected feature baseline: v1.8.0, tag 3fbd85118b924d50c10a495ad5c7175028649d77
 - Disposition: ADAPT
+
+## Owner-approved scope override
+
+On 2026-08-11, after reviewing the omitted 1.7/1.8 features, the owner
+explicitly directed a complete LimboAI 1.8 port that builds on the verified 1.6
+Redot work. This overrides the preflight recommendation to stop at the newest
+unchanged 4.5-compatible source. The original findings remain valid risk
+evidence: v1.8 assumes Godot 4.6 and includes 4.7 compatibility work, so those
+dependencies must now be adapted and verified against Redot 26.2 rather than
+used to reduce feature scope.
 
 Port behavior trees, blackboards, hierarchical state machines, editor tools, runtime debugger, resources, and GDScript extension points.
 
@@ -86,6 +97,8 @@ This is a labeled SELF_REVIEW pass; no independent reviewer was available. Mater
 
 ## Preflight gate
 
-ADAPT: version-aware baseline is identified; exact Redot extension/editor verification remains open.
+ADAPT: the owner-selected v1.8 baseline is identified; its complete Redot
+extension/editor/runtime compatibility matrix is reopened and must pass before
+the port is called complete.
 
 The source-of-truth workbook in this folder records the evaluated sources, decisions, and risks. No third-party code was executed merely to evaluate it.

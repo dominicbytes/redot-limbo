@@ -71,3 +71,18 @@
   editor/release fixtures using the official Redot app before release support
   is claimed.
 - Consequence: a local cross-build cannot clear the native macOS runtime gate.
+
+## ADR-0010: Promote LimboAI 1.8.0 to the Redot port baseline
+
+- Date: 2026-08-11
+- Status: accepted; supersedes ADR-0004 and the 1.6-only scope in ADR-0007
+- Decision: port the complete upstream `v1.8.0` source at
+  `3fbd85118b924d50c10a495ad5c7175028649d77` to Redot 26.2 while retaining
+  the existing Redot binding, build, test, packaging, and evidence foundation.
+- Reason: the owner explicitly expanded the product scope from the compatible
+  1.6 baseline to the 1.8 feature set.
+- Consequence: Godot 4.6/4.7-facing code must be adapted at proven engine
+  boundaries for Redot's 4.5.2 API lineage. All 1.6 implementation evidence is
+  retained as a checkpoint but must be rerun for the new baseline. The target
+  downstream version becomes `1.8.0+redot.26.2.1`; source publication remains
+  authorized, but no tag or release is implied.

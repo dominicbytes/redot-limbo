@@ -4,9 +4,19 @@
 - Project: `plugins/redot-limboai`
 - Target: Redot 26.2 LTS (`26.2.stable.official.4f5b14aba`; Godot/GDExtension lineage `4.5.2 stable`)
 - Local research snapshot: `limbonaut/limboai@a6f5c7fc11ff80d512dd75c82cfa85724fd8a742` on `master`
-- Selected compatibility baseline: `v1.6.0@91b22a187f7cd701e25eedd6dcff34179795e687`
-- Status: local implementation/package evidence complete; visible editor, controlled performance, native macOS, native Windows/macOS export, and publication gates remain
+- Selected feature baseline: `v1.8.0@3fbd85118b924d50c10a495ad5c7175028649d77`
+- Status: v1.8 integration and complete Redot 26.2 revalidation in progress; the verified v1.6 implementation remains the compatibility checkpoint
 - Scope authority: [preflight report](preflight-report.md) and [porting specification](../../../redot_plugin_porting_codex_spec.md), section 10
+
+## Approved v1.8 scope amendment
+
+On 2026-08-11, the owner explicitly directed that the complete LimboAI 1.8
+feature set be ported to Redot and that it build on the existing 1.6 port. This
+supersedes the earlier 1.6-only baseline and out-of-scope decision. Redot stays
+locked to 26.2 and its Godot/GDExtension 4.5.2 lineage, so upstream 4.6/4.7
+assumptions are compatibility work rather than grounds for omitting 1.8
+features. Every affected build, runtime, editor, migration, package, and
+platform gate is reopened; prior 1.6 evidence remains historical evidence only.
 
 ## Planning state
 
@@ -16,21 +26,20 @@ The user's instruction to plan from the preflight materials is treated as confir
 
 - Deliver a GDExtension first. A Redot engine-module edition is deferred until the extension passes parity and a module-only benefit is proven.
 - Preserve LimboAI class names, methods, signals, settings, resource types, serialized identifiers, and GDScript extension points wherever Redot permits.
-- Use the newest stable upstream release only if it builds and runs against Redot's 4.5.2 lineage; otherwise fall back to the newest verified `1.6.x` source. `v1.6.0` is the current candidate, not the final lock.
+- Use the complete `v1.8.0` feature baseline. Preserve its public behavior and editor surface while adapting only proven Godot 4.6/4.7 engine dependencies at narrow compatibility boundaries for Redot 26.2.
 - Ship the core addon separately from the CC BY 4.0 logo/demo package.
 - The first release targets single-precision Windows x86-64, Linux x86-64, and macOS universal. Other platforms remain later gates.
 - Upstream C++ GDExtension code is a scope-authorized exception to the workspace's typed-GDScript baseline. New downstream gameplay fixtures and extension examples use typed GDScript. No C# or .NET lane is included.
 
 ### Not yet specified
 
-- The final upstream tag/commit, until full tags are fetched and the baseline procedure passes.
 - The exact source patch, until the generated API/compile report proves a mismatch.
-- A public downstream repository, release date, and signing/notarization identity.
+- A release date and signing/notarization identity. Source publication to `dominicbytes/redot-limbo` is authorized; a tag or release is not.
 - Later-platform and module support after the desktop GDExtension release.
 
 ### Active frontier
 
-Fetch the full upstream history and candidate tag, freeze the selected Godot baseline, reconcile the two local Redot API artifacts, and record the accepted API-source exception before changing port source. No unresolved product choice blocks that work.
+Integrate `v1.8.0` into the existing Redot branch, preserve the accepted Redot API/binding contract and downstream validation infrastructure, then use compile/load/runtime/editor failures to identify the smallest required 4.6/4.7 compatibility delta.
 
 ## 1. Destination
 
@@ -220,7 +229,7 @@ Evidence must be primary/local where possible, tied to exact hashes, and stop on
 
 | Evidence | State | Plan consequence |
 | --- | --- | --- |
-| Upstream 1.7.x/1.8.x target Godot 4.6+, while 1.6.x is the documented 4.4-4.6 compatibility line. | OBSERVED in the 2026-08-09 preflight. | Use the required newest-stable attempt, with `v1.6.0` as current fallback candidate. |
+| Upstream 1.7.x/1.8.x target Godot 4.6+, while Redot 26.2 exposes the 4.5.2 lineage. | OBSERVED in the 2026-08-09 preflight. | Owner-authorized scope override: port the full v1.8.0 feature baseline and treat 4.6/4.7 assumptions as explicit compatibility work. |
 | Candidate `v1.6.0` resolves to `91b22a187f7cd701e25eedd6dcff34179795e687`. | OBSERVED metadata; local object BLOCKED. | Fetch full tags and verify the object before it can become the implementation baseline. |
 | The local source is shallow `master` at `a6f5c7fc11ff80d512dd75c82cfa85724fd8a742`, identifies as 1.8.0, and targets Godot 4.6. | OBSERVED. | Preserve it as research/latest comparison only; do not port this snapshot by default. |
 | No binding checkout or deployed GDExtension exists locally. | OBSERVED. | The first build tasks must create external, pinned dependency and deploy roots. |
@@ -229,7 +238,7 @@ Evidence must be primary/local where possible, tied to exact hashes, and stop on
 | The installed Redot binary is now available and verified, but its API dump crashes. | OBSERVED on 2026-08-10. | Replace the stale empty-variable blocker with the API-source exception gate. |
 | Source is MIT; the logo and demo graphics are CC BY 4.0. | OBSERVED. | Retain source notices and publish core/demo separately with explicit attribution. |
 | Upstream GDExtension CI covers desktop plus later platforms; unit tests are compiled in an engine-module job. | OBSERVED. | Reuse/adapt the desktop CI shape; defer later targets and translate critical native behavior to the extension fixture. |
-| Public downstream GitHub fork/authentication is unavailable. | BLOCKED for publication only. | Local planning/build/test work can proceed; source push, tag, and release require owner authorization. |
+| Public downstream fork `dominicbytes/redot-limbo` exists and source updates are authorized. | RESOLVED for source publication. | Push only verified source; tags, releases, signing, and notarization remain separately gated. |
 
 Adopt the upstream data model, editor experience, docs, and test semantics. Adapt binding/build inputs, narrow engine-facing compatibility points, deterministic fixtures, packaging, CI, and attribution. Reject a source-only copy without history, an unpinned master port, a new GDScript reimplementation, and a module-first release.
 
@@ -237,12 +246,12 @@ Adopt the upstream data model, editor experience, docs, and test semantics. Adap
 
 | ID | Sequence | Runnable, observable outcome | Dependencies | Acceptance and evidence | Status |
 | --- | ---: | --- | --- | --- | --- |
-| MS-005 | 1 | **Upstream and rights lock.** The selected unmodified baseline builds and its demo/tests run under its supported Godot version. | Full fetch/tags; selected Godot binary/toolchain. | Full commit/dependencies/licenses in `UPSTREAM_LOCK.md`; newest-vs-selected report; unmodified build/demo log; source and asset inventory. | Complete |
-| MS-015 | 2 | **Redot contract and load.** Exact Redot bindings build the selected source or expose a source-level blocker; a minimal Redot project loads the extension and registers core/editor classes. | MS-005; API-exception ADR; Redot C++ lock. | Contract report; external debug build; bounded editor/runtime initialization; class/monitor/setting counts; clean logs. | Complete |
-| MS-025 | 3 | **First end-to-end vertical slice.** A developer creates/saves a small tree, runs it through `BTPlayer`, observes deterministic state/blackboard output, and inspects it live. | MS-015; GNT-01 oracle frozen. | Minimum fixture/capture harness; Godot/Redot semantic fingerprints and tick traces; editor/debugger captures; GNT-01 PASS. | Automated slice complete; BLOCKED on visible debugger evidence |
-| MS-035 | 4 | **Behavior-tree and blackboard parity.** Built-in task families, interruption, blackboards, subtrees, multi-agent behavior, custom GDScript task categories, and runtime view pass. | MS-025. | Machine-readable scenario matrix; upstream native-test mapping; resource and extension-point reports; GNT-02 PASS. | Representative implementation complete; BLOCKED on full coverage/performance matrix |
-| MS-045 | 5 | **HSM, migration, and editor parity.** Nested HSMs, events, callbacks, `BTState`, custom states, migrated resources, editor lifecycle, debugger, monitors, and accessibility pass. | MS-035. | Migration matrix; editor checklist/captures; lifecycle counts; performance sample; GNT-03 PASS. | Automated HSM/migration complete; BLOCKED on visible editor protocol |
-| MS-055 | 6 | **Desktop release candidate.** Windows/Linux/macOS packages build, audit, install, export, and document the exact supported scope. | MS-045; hosted macOS runner; publication authorization for release step. | Platform binaries/dependencies; clean-install/export logs; notices/checksums; upstream-sync dry run; GNT-04 PASS. | Six binaries, deterministic archives, Windows/Linux headless clean installs, and Linux packed runtime complete; BLOCKED on native macOS and remaining release gates |
+| MS-005 | 1 | **Upstream and rights lock.** The selected unmodified baseline builds and its demo/tests run under its supported Godot version. | Full fetch/tags; selected Godot binary/toolchain. | Full commit/dependencies/licenses in `UPSTREAM_LOCK.md`; newest-vs-selected report; unmodified build/demo log; source and asset inventory. | In progress: v1.8 baseline lock |
+| MS-015 | 2 | **Redot contract and load.** Exact Redot bindings build the selected source or expose a source-level blocker; a minimal Redot project loads the extension and registers core/editor classes. | MS-005; API-exception ADR; Redot C++ lock. | Contract report; external debug build; bounded editor/runtime initialization; class/monitor/setting counts; clean logs. | Pending v1.8 build/load revalidation |
+| MS-025 | 3 | **First end-to-end vertical slice.** A developer creates/saves a small tree, runs it through `BTPlayer`, observes deterministic state/blackboard output, and inspects it live. | MS-015; GNT-01 oracle frozen. | Minimum fixture/capture harness; Godot/Redot semantic fingerprints and tick traces; editor/debugger captures; GNT-01 PASS. | Pending v1.8 vertical-slice revalidation |
+| MS-035 | 4 | **Behavior-tree and blackboard parity.** Built-in task families, interruption, blackboards, subtrees, multi-agent behavior, custom GDScript task categories, and runtime view pass. | MS-025. | Machine-readable scenario matrix; upstream native-test mapping; resource and extension-point reports; GNT-02 PASS. | Pending v1.8 feature/runtime revalidation |
+| MS-045 | 5 | **HSM, migration, and editor parity.** Nested HSMs, events, callbacks, `BTState`, custom states, migrated resources, editor lifecycle, debugger, monitors, and accessibility pass. | MS-035. | Migration matrix; editor checklist/captures; lifecycle counts; performance sample; GNT-03 PASS. | Pending v1.8 HSM/editor/migration revalidation |
+| MS-055 | 6 | **Desktop release candidate.** Windows/Linux/macOS packages build, audit, install, export, and document the exact supported scope. | MS-045; hosted macOS runner; publication authorization for release step. | Platform binaries/dependencies; clean-install/export logs; notices/checksums; upstream-sync dry run; GNT-04 PASS. | Pending v1.8 desktop/package revalidation |
 
 ## 10. Task breakdown
 
@@ -384,17 +393,28 @@ Each result records source/engine/API/binding hashes, platform/architecture/prec
 
 | ID | Risk or open question | Impact | Mitigation / owner | Blocking state and deadline |
 | --- | --- | --- | --- | --- |
-| RSK-001 | Is `v1.6.0` the final baseline, or does another stable/1.6.x source pass better? | Wrong source choice or false parity claim. | Execute the mandated baseline matrix and omissions report. Owner: Codex. | Resolved; v1.6.0 selected and newest comparison retained. |
+| RSK-001 | Can the complete `v1.8.0` feature/editor surface be adapted to Redot's 4.5.2 lineage without semantic loss? | Compile, editor, serialization, or runtime failures. | Integrate one coherent v1.8 baseline and adapt only proven engine-facing differences. Owner: Codex. | In progress; blocks v1.8 compatibility claim. |
 | RSK-002 | Editor APIs or resource serialization differ despite API lineage. | Data loss, editor crash, or migration failure. | GNT-01/GNT-03 contract, lifecycle, and semantic fingerprint gates. Owner: Codex. | Mitigated by round-trip/runtime proof; visible editor gate remains. |
 | RSK-003 | Demo/logo files are packaged without complete CC BY attribution. | Legal/release failure. | Separate core/demo packages and file-level license inventory. Owner: Codex. | Resolved for the final local archives. |
 | RSK-004 | Official Redot API dumping crashes and local API files disagree. | Binding provenance or ABI uncertainty. | Reconcile engine source, Redot C++ API/interface, both artifacts, compile/load/runtime proof, and an accepted ADR. Owner: Codex. | Resolved by accepted API provenance and compile/load/runtime proof. |
 | RSK-005 | Upstream native tests are module-oriented while first delivery is GDExtension. | Important semantics may be untested. | Run native tests on selected upstream baseline; map every case; reproduce critical behavior in deterministic extension fixtures. Owner: Codex. | Open; blocks behavior parity. |
 | RSK-006 | Windows/Linux/macOS toolchains or native outputs diverge. | Incomplete desktop release. | Same source/API locks, clean platform CI, manifest and dependency audit. Owner: Codex. | Blocked on native macOS runtime; all six local structures pass. |
-| RSK-007 | Later 1.7/1.8 features or fixes are expected by users. | Misleading scope and maintenance pressure. | Publish exact newest-vs-selected table; backport only isolated tested fixes. Owner: Codex. | Mitigated by exact version and omissions documentation. |
-| RSK-008 | Public downstream repository/authentication is absent. | Cannot publish source/tag/release. | Owner chooses and authorizes the repository. Owner: DominicBytes. | Blocked; publication only. |
+| RSK-007 | Complete 1.8 feature parity is now required. | A partial backport would not satisfy the authorized product scope. | Merge the full tag, adapt its engine dependencies, and add direct regression coverage. Owner: Codex. | In progress; blocks source publication. |
+| RSK-008 | Tags, releases, signing, and notarization remain unauthorized. | Source may be published but no release may be claimed. | Push only the verified branch and request separate release authorization. Owner: DominicBytes. | Source publication resolved; release blocked. |
 | RSK-009 | Editor debugger or 200-agent runtime performance regresses. | Poor usability or scalability. | Freeze same-machine baseline and enforce GNT-02/GNT-03 tolerances. Owner: Codex. | Open; blocks relevant parity/release claim. |
 
 No design fog blocks MS-005. The exact source patch and later lanes are deliberately evidence-dependent rather than silently assumed.
+
+### 12.1 v1.8 scope-amendment tasks
+
+| Task | Outcome | Acceptance check |
+| --- | --- | --- |
+| LIM-022 | Replace the 1.6 feature baseline with exact upstream `v1.8.0` while retaining downstream Redot build/test/package infrastructure. | A source inventory accounts for all 48 non-merge upstream commits; omitted or altered upstream lines map only to a documented Redot incompatibility. |
+| LIM-023 | Compile and load the complete v1.8 runtime and editor source against the locked Redot 26.2 binding. | Windows editor and template-release builds complete without unexplained warnings; bounded Redot editor/runtime initialization registers the expected classes and exits cleanly. |
+| LIM-024 | Prove the later feature surface, including HSM transition cargo, the reworked task palette/layout, probability/status overlays, and runtime blackboard inspection. | Direct deterministic tests pass for runtime semantics; the visible-editor protocol names and exercises every later editor feature at both required UI profiles. |
+| LIM-025 | Rerun the complete BT, blackboard, subtree, custom GDScript, HSM/BTState, resource round-trip, multi-agent, view, monitor, and migration matrix. | All deterministic cases pass with zero suspicious log lines and exact documented semantic results. |
+| LIM-026 | Rebuild and audit the desktop/package matrix with `1.8.0+redot.26.2.1` metadata. | Required platform structures, clean installs, deterministic archives, rights inventory, and package/version checks pass; externally blocked native/interactive gates remain explicit. |
+| LIM-027 | Publish the verified source update to `dominicbytes/redot-limbo`. | The fork default branch resolves to the tested commit and is clean; no tag, GitHub release, signing, or notarization action occurs. |
 
 ## 13. Release plan
 
@@ -410,7 +430,7 @@ No design fog blocks MS-005. The exact source patch and later lanes are delibera
 
 ## 14. Out of scope
 
-- Feature parity with LimboAI 1.7/1.8/current master when the selected baseline is 1.6.x; later isolated bug fixes require explicit evidence and tests.
+- Features introduced after the immutable LimboAI `v1.8.0` tag or unrelated current-master changes.
 - A Redot engine-module release until GDExtension parity passes and a required module-only capability is demonstrated.
 - C#, .NET, GDExtension language bindings other than the existing C++ implementation, or another engine.
 - A GDScript rewrite of native LimboAI systems, a second editor plugin wrapper, or a new AI/event architecture.
