@@ -35,8 +35,9 @@ scons --project=<external-project> platform=<windows|linux|macos> target=editor
 scons --project=<external-project> platform=<windows|linux|macos> target=template_release
 ```
 
-Use `arch=x86_64` on Windows and Linux and `arch=universal` on a native macOS
-builder. Generated libraries and evidence belong outside this source tree.
+Use `arch=x86_64` on Windows and Linux. On a native macOS builder, use
+`arch=universal macos_deployment_target=11.0`. Generated libraries and evidence
+belong outside this source tree.
 The build fails closed when the binding commit, API, interface header, or
 selected profile differs from the lock.
 
