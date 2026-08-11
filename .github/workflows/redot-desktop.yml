@@ -293,8 +293,8 @@ jobs:
           test -n "$windows_addon" && test -n "$linux_addon" && test -n "$macos_addon"
           python3 scripts/package_release.py --windows-addon "$windows_addon" --linux-addon "$linux_addon" --macos-addon "$macos_addon" --output ../build/package-a
           python3 scripts/package_release.py --windows-addon "$windows_addon" --linux-addon "$linux_addon" --macos-addon "$macos_addon" --output ../build/package-b
-          cmp ../build/package-a/redot-limboai-1.6.0+redot.26.2.1-core.zip ../build/package-b/redot-limboai-1.6.0+redot.26.2.1-core.zip
-          cmp ../build/package-a/redot-limboai-1.6.0+redot.26.2.1-demo.zip ../build/package-b/redot-limboai-1.6.0+redot.26.2.1-demo.zip
+          cmp ../build/package-a/redot-limboai-1.8.0+redot.26.2.1-core.zip ../build/package-b/redot-limboai-1.8.0+redot.26.2.1-core.zip
+          cmp ../build/package-a/redot-limboai-1.8.0+redot.26.2.1-demo.zip ../build/package-b/redot-limboai-1.8.0+redot.26.2.1-demo.zip
           cmp ../build/package-a/release-manifest.json ../build/package-b/release-manifest.json
 
       - name: Upload deterministic packages

@@ -37,9 +37,13 @@ class FixtureAgent:
 	extends Node
 
 	var state_trace: Array[String] = []
+	var cargo_trace: Array[Dictionary] = []
 
 	func record_state_event(state_label: StringName, event: StringName) -> void:
 		state_trace.append("%s:%s" % [state_label, event])
+
+	func record_state_cargo(state_label: StringName, cargo: Variant) -> void:
+		cargo_trace.append({"state": String(state_label), "cargo": cargo})
 
 
 func _initialize() -> void:
@@ -49,6 +53,7 @@ func _initialize() -> void:
 func _run() -> void:
 	_test_class_registration()
 	_test_blackboard_contract()
+	_test_blackboard_runtime_inspection()
 	var tree: BehaviorTree = _test_resource_roundtrip()
 	if tree != null:
 		_test_direct_tree_execution(tree)
@@ -102,6 +107,35 @@ func _test_blackboard_contract() -> void:
 		"parent_after": parent_after,
 		"child_after": child_after,
 		"linked_after": linked_after,
+	})
+
+
+func _test_blackboard_runtime_inspection() -> void:
+	var parent := Blackboard.new()
+	parent.set_var(&"shared", 7)
+	var child := Blackboard.new()
+	child.set_parent(parent)
+	child.set_var(&"local", 3)
+
+	var property_names: PackedStringArray = []
+	for property: Dictionary in child.get_property_list():
+		property_names.append(str(property.get("name", "")))
+	var inspected_parent: int = int(child.get(&"scope_1/shared"))
+	var inspected_local: int = int(child.get(&"scope_0/local"))
+	child.set(&"scope_1/shared", 12)
+	var edited_parent: int = int(parent.get_var(&"shared", -1, false))
+	var passed: bool = (
+		property_names.has("scope_1/shared")
+		and property_names.has("scope_0/local")
+		and inspected_parent == 7
+		and inspected_local == 3
+		and edited_parent == 12
+	)
+	_record_case("blackboard_runtime_inspection", passed, {
+		"property_names": property_names,
+		"inspected_parent": inspected_parent,
+		"inspected_local": inspected_local,
+		"edited_parent": edited_parent,
 	})
 
 
@@ -406,7 +440,19 @@ func _test_hsm_and_bt_state(tree: BehaviorTree) -> void:
 	hsm.initialize(agent)
 	hsm.set_active(true)
 	hsm.update(FIXED_DELTA)
-	var consumed_work: bool = hsm.dispatch(&"work")
+	var consumed_work: bool = hsm.dispatch(&"work", 25)
+	var cargo_received := false
+	for entry: Dictionary in agent.cargo_trace:
+		if entry.get("state", "") == "work" and int(entry.get("cargo", -1)) == 25:
+			cargo_received = true
+			break
+	var cargo_cleared: bool = work.get_cargo() == null
+	_record_case("hsm_transition_cargo", consumed_work and cargo_received and cargo_cleared, {
+		"consumed": consumed_work,
+		"received": cargo_received,
+		"cleared_after_enter": cargo_cleared,
+		"trace": agent.cargo_trace,
+	})
 	hsm.update(FIXED_DELTA)
 	var consumed_tree: bool = hsm.dispatch(&"tree")
 	for _index in 3:

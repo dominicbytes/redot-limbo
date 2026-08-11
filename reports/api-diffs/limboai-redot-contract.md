@@ -42,15 +42,17 @@ network lookup occurred.
 
 ## Load and semantic result
 
-The unchanged v1.6.0 source built and loaded with the Redot binding before any
-source backport. The final fixture registers the runtime and editor classes and
-passes eleven named cases. Its normalized Godot 4.5.2 versus Redot 26.2
-comparison contains zero differences.
+The unchanged v1.6.0 source first built and loaded as the API-lineage
+checkpoint. The complete v1.8.0 source now builds and loads against the same
+locked Redot contract. The expanded fixture registers runtime and editor
+classes and passes thirteen named cases, including v1.8 runtime blackboard
+inspection and HSM transition cargo.
 
-The accepted API requires no downstream runtime compatibility shim. The only
-API-version guard exposes the three upstream 4.5 plan-editor hints while
-preserving compilation against the 4.4 Godot oracle. Other engine-facing
-changes are build/version controls or isolated upstream bug-fix backports.
+The accepted API requires no broad runtime compatibility layer. Narrow
+engine-facing adaptations cover explicit editor-plugin `Ref` construction, a
+missing Godot 4.6 theme setting, five demo animation-library serialization
+fields, and API-version guards for three property-hint families. Build and
+version controls are downstream infrastructure rather than feature changes.
 
 Evidence is stored outside the source repository under
 `plugins/build/redot-limboai/tooling/redot-api-comparison.json`, build logs,

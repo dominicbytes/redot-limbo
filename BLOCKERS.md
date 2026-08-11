@@ -1,8 +1,9 @@
 # Blockers and release gates
 
-Resolved preflight blockers remain visible in Git history. The Redot binary is
-installed, its official API dump is reproducible, and the source/dependency
-locks are complete.
+The complete upstream LimboAI 1.8 source is now integrated and the local
+desktop build/runtime gates pass where executable on the Windows host. The
+remaining items limit release claims; they do not mean 1.8 features were
+omitted.
 
 ## BLOCK-MAC-NATIVE: Native macOS result not yet executed
 
@@ -18,26 +19,27 @@ locks are complete.
 
 - Owner: repository owner or authorized interactive tester
 - State: blocked outside headless automation
-- Required evidence: 100%/150% UI profiles, task authoring and undo/redo,
-  debugger selection, focus/readability, and five enable/disable plus five
-  reopen cycles with registration counts and captures.
+- Required evidence: 100%/150% UI profiles, task-palette/favorites authoring,
+  probability/status rendering, undo/redo, debugger blackboard selection,
+  focus/readability, and five enable/disable plus five reopen cycles.
 - Release impact: blocks GNT-03, full editor/debugger parity, and public release.
 
-## BLOCK-PERF-BASELINE: Full five-run oracle performance matrix absent
+## BLOCK-PERF-BASELINE: Full five-run performance matrix absent
 
 - Owner: Codex / authorized test host
 - State: open gate
-- Existing evidence: deterministic 32-agent isolation plus final-build,
-  archive-clean-install, and packed-runtime 200-agent smoke samples pass, but
-  the plan's controlled warmup plus five comparable runs and debugger/editor
-  p95 measurements are not complete.
-- Release impact: blocks GNT-02/GNT-03 performance claims.
+- Existing evidence: deterministic 32-agent isolation and 200-agent smoke
+  samples pass, but the plan's controlled warmup plus five comparable runs and
+  debugger/editor p95 measurements are not complete.
+- Release impact: blocks broad performance claims.
 
-## BLOCK-PUBLICATION: Repository and release authorization absent
+## BLOCK-RELEASE: Public release authority is intentionally narrower
 
 - Owner: DominicBytes
-- State: blocked by explicit authorization
-- Required decision: choose/authorize the downstream GitHub repository,
-  signing/notarization channel, push, tag, and public release.
-- Release impact: blocks publication only. No source push, tag, release, signing,
-  or notarization operation is authorized by this implementation task.
+- State: source publication authorized; release publication blocked
+- Authorized: push the completed Redot port to `dominicbytes/redot-limbo` and
+  identify it as the Redot port.
+- Not authorized: create or push a version tag, GitHub release, signed binary,
+  notarized artifact, or distribution-channel publication.
+- Release impact: source may be pushed, but no release claim or release object
+  may be created in this task.

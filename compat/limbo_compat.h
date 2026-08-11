@@ -22,6 +22,8 @@
 
 // *** API abstractions: Module edition
 
+#include "core/io/resource_saver.h"
+
 #define RESOURCE_SAVE(m_res, m_path, m_flags) ResourceSaver::save(m_res, m_path, m_flags)
 #define FILE_EXISTS(m_path) FileAccess::exists(m_path)
 #define DIR_ACCESS_CREATE() DirAccess::create(DirAccess::ACCESS_RESOURCES)
@@ -51,5 +53,8 @@
 #define LW_MBTN(key) (MouseButton::MOUSE_BUTTON_##key)
 
 #endif // ! LIMBOAI_GDEXTENSION
+
+// Property visible to the remote debugger at runtime, but hidden in the editor.
+#define PROPERTY_USAGE_EDITOR_INSPECT() (Engine::get_singleton()->is_editor_hint() ? PROPERTY_USAGE_NONE : PROPERTY_USAGE_EDITOR)
 
 #endif // LIMBO_COMPAT_H

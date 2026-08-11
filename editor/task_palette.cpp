@@ -16,7 +16,9 @@
 #include "../compat/editor.h"
 #include "../compat/editor_paths.h"
 #include "../compat/editor_scale.h"
+#include "../compat/editor_settings.h"
 #include "../compat/project_settings.h"
+#include "../compat/resource_loader.h"
 #include "../compat/translation.h"
 #include "../compat/variant.h"
 #include "../util/limbo_string_names.h"
@@ -25,6 +27,7 @@
 
 #ifdef LIMBOAI_MODULE
 #include "core/io/config_file.h"
+#include "core/object/callable_mp.h"
 #include "editor/doc/editor_help.h"
 #include "editor/editor_node.h"
 #include "scene/gui/check_box.h"
@@ -36,6 +39,7 @@
 #include <godot_cpp/classes/button_group.hpp>
 #include <godot_cpp/classes/check_box.hpp>
 #include <godot_cpp/classes/config_file.hpp>
+#include <godot_cpp/classes/editor_settings.hpp>
 #include <godot_cpp/classes/font.hpp>
 #include <godot_cpp/classes/h_box_container.hpp>
 #include <godot_cpp/classes/input_event_mouse_button.hpp>
@@ -61,28 +65,12 @@ Control *TaskButton::_do_make_tooltip() const {
 		help_symbol = "class|" + task_meta + "|";
 	}
 
-	String desc = _module_get_help_description(task_meta);
-	if (desc.is_empty() && is_resource) {
-		// ! HACK: Force documentation parsing.
-		Ref<Script> s = ResourceLoader::load(task_meta);
-		if (s.is_valid()) {
-			Vector<DocData::ClassDoc> docs = s->get_documentation();
-			for (int i = 0; i < docs.size(); i++) {
-				const DocData::ClassDoc &doc = docs.get(i);
-				EditorHelp::get_doc_data()->add_doc(doc);
-			}
-			desc = _module_get_help_description(task_meta);
-		}
-	}
-	if (desc.is_empty()) {
-		desc = "[i]" + TTR("No description.") + "[/i]";
-	}
-	return EditorHelpBitTooltip::make_tooltip(const_cast<TaskButton *>(this), help_symbol, desc);
+	return EditorHelpBitTooltip::make_tooltip(const_cast<TaskButton *>(this), help_symbol);
 #endif // LIMBOAI_MODULE
 
 #ifdef LIMBOAI_GDEXTENSION
 	// TODO: When we figure out how to retrieve documentation in GDEXTENSION, should add a tooltip control here.
-	return memnew(Control); // Make the standard tooltip invisible
+	return nullptr; // Make the standard tooltip invisible
 #endif // LIMBOAI_GDEXTENSION
 }
 
@@ -145,11 +133,7 @@ void TaskPaletteSection::_on_task_button_gui_input(const Ref<InputEvent> &p_even
 	}
 }
 
-void TaskPaletteSection::_on_header_pressed() {
-	set_collapsed(!is_collapsed());
-}
-
-void TaskPaletteSection::set_filter(String p_filter_text) {
+void TaskPaletteSection::set_filter(const String &p_filter_text) {
 	int num_hidden = 0;
 	if (p_filter_text.is_empty()) {
 		for (int i = 0; i < tasks_container->get_child_count(); i++) {
@@ -170,37 +154,49 @@ void TaskPaletteSection::add_task_button(const String &p_name, const Ref<Texture
 	TaskButton *btn = memnew(TaskButton);
 	btn->set_text(p_name);
 	btn->set_button_icon(icon);
+#ifdef LIMBOAI_MODULE
 	btn->set_tooltip_text("dummy_text"); // Force tooltip to be shown.
+#endif
 	btn->set_task_meta(p_meta);
+	btn->set_flat(use_flat_buttons);
 	btn->add_theme_constant_override(LW_NAME(icon_max_width), 16 * EDSCALE); // Force user icons to  be of the proper size.
 	btn->connect(LW_NAME(pressed), callable_mp(this, &TaskPaletteSection::_on_task_button_pressed).bind(p_meta));
 	btn->connect(LW_NAME(gui_input), callable_mp(this, &TaskPaletteSection::_on_task_button_gui_input).bind(p_meta));
 	tasks_container->add_child(btn);
 }
 
-void TaskPaletteSection::set_collapsed(bool p_collapsed) {
-	tasks_container->set_visible(!p_collapsed);
-	section_header->set_button_icon((p_collapsed ? theme_cache.arrow_right_icon : theme_cache.arrow_down_icon));
+void TaskPaletteSection::clear_task_buttons() {
+	while (tasks_container->get_child_count() > 0) {
+		Node *child = tasks_container->get_child(0);
+		tasks_container->remove_child(child);
+		child->queue_free();
+	}
 }
 
-bool TaskPaletteSection::is_collapsed() const {
-	return !tasks_container->is_visible();
-}
-
-void TaskPaletteSection::_do_update_theme_item_cache() {
-	theme_cache.arrow_down_icon = get_theme_icon(LW_NAME(GuiTreeArrowDown), LW_NAME(EditorIcons));
-	theme_cache.arrow_right_icon = get_theme_icon(LW_NAME(GuiTreeArrowRight), LW_NAME(EditorIcons));
+int TaskPaletteSection::get_task_button_count() const {
+	return tasks_container->get_child_count();
 }
 
 void TaskPaletteSection::_notification(int p_what) {
 	switch (p_what) {
-		case NOTIFICATION_READY: {
-			section_header->connect(LW_NAME(pressed), callable_mp(this, &TaskPaletteSection::_on_header_pressed));
-		} break;
 		case NOTIFICATION_THEME_CHANGED: {
-			_do_update_theme_item_cache();
-			section_header->set_button_icon((is_collapsed() ? theme_cache.arrow_right_icon : theme_cache.arrow_down_icon));
-			section_header->add_theme_font_override(LW_NAME(font), get_theme_font(LW_NAME(bold), LW_NAME(EditorFonts)));
+			bool prev_value = use_flat_buttons;
+			if (EDITOR_SETTINGS()->has_setting("interface/theme/style")) {
+				const String theme_style = EDITOR_GET("interface/theme/style");
+				use_flat_buttons = theme_style.contains("Modern");
+			} else {
+				// Redot 26.2 uses the modern editor style without exposing this
+				// Godot 4.6 setting.
+				use_flat_buttons = true;
+			}
+			if (use_flat_buttons != prev_value) {
+				for (int i = 0; i < tasks_container->get_child_count(); i++) {
+					Button *btn = Object::cast_to<Button>(tasks_container->get_child(i));
+					if (btn) {
+						btn->set_flat(use_flat_buttons);
+					}
+				}
+			}
 		} break;
 	}
 }
@@ -211,10 +207,6 @@ void TaskPaletteSection::_bind_methods() {
 }
 
 TaskPaletteSection::TaskPaletteSection() {
-	section_header = memnew(Button);
-	add_child(section_header);
-	section_header->set_focus_mode(FOCUS_NONE);
-
 	tasks_container = memnew(HFlowContainer);
 	add_child(tasks_container);
 }
@@ -248,7 +240,7 @@ void TaskPalette::_menu_action_selected(int p_id) {
 			}
 			ProjectSettings::get_singleton()->set_setting("limbo_ai/behavior_tree/favorite_tasks", favorite_tasks);
 			ProjectSettings::get_singleton()->save();
-			emit_signal(LW_NAME(favorite_tasks_changed));
+			_refresh_favorites();
 		} break;
 	}
 }
@@ -284,10 +276,38 @@ void TaskPalette::_on_task_button_rmb(const String &p_task) {
 	menu->popup();
 }
 
+void TaskPalette::_refresh_favorites() {
+	fav_section->clear_task_buttons();
+
+	PackedStringArray favorite_tasks = GLOBAL_GET("limbo_ai/behavior_tree/favorite_tasks");
+	for (int i = 0; i < favorite_tasks.size(); i++) {
+		String task_meta = favorite_tasks[i];
+
+		// Validate that the task exists.
+		if (task_meta.begins_with("res:")) {
+			if (!RESOURCE_EXISTS(task_meta, "Script")) {
+				continue;
+			}
+		} else if (!ClassDB::class_exists(task_meta)) {
+			continue;
+		}
+
+		String tname = LimboTaskDB::get_task_name(task_meta);
+		Ref<Texture2D> icon = LimboUtility::get_singleton()->get_task_icon(task_meta);
+		fav_section->add_task_button(tname, icon, task_meta);
+	}
+
+	bool has_favorites = fav_section->get_task_button_count() > 0;
+	fav_section->set_visible(has_favorites);
+	fav_separator->set_visible(has_favorites);
+}
+
 void TaskPalette::_apply_filter(const String &p_text) {
 	for (int i = 0; i < sections->get_child_count(); i++) {
 		TaskPaletteSection *sec = Object::cast_to<TaskPaletteSection>(sections->get_child(i));
-		ERR_FAIL_NULL(sec);
+		if (!sec) {
+			continue;
+		}
 		sec->set_filter(p_text);
 	}
 }
@@ -421,7 +441,8 @@ void TaskPalette::_update_filter_button() {
 
 void TaskPalette::refresh() {
 	HashSet<String> collapsed_sections;
-	if (sections->get_child_count() == 0) {
+	// NOTE: fav_section and fav_separator are always present, so check for <= 2.
+	if (sections->get_child_count() <= 2) {
 		// Restore collapsed state from config.
 		Ref<ConfigFile> cf;
 		cf.instantiate();
@@ -440,11 +461,15 @@ void TaskPalette::refresh() {
 	} else {
 		for (int i = 0; i < sections->get_child_count(); i++) {
 			TaskPaletteSection *sec = Object::cast_to<TaskPaletteSection>(sections->get_child(i));
-			ERR_FAIL_NULL(sec);
-			if (sec->is_collapsed()) {
-				collapsed_sections.insert(sec->get_category_name());
+			if (!sec) {
+				continue;
 			}
-			sections->get_child(i)->queue_free();
+			if (sec->is_folded()) {
+				collapsed_sections.insert(sec->get_title());
+			}
+			if (sec != fav_section) {
+				sections->get_child(i)->queue_free();
+			}
 		}
 	}
 
@@ -463,7 +488,7 @@ void TaskPalette::refresh() {
 		}
 
 		TaskPaletteSection *sec = memnew(TaskPaletteSection());
-		sec->set_category_name(cat);
+		sec->set_title(cat);
 		for (const String &task_meta : tasks) {
 			Ref<Texture2D> icon = LimboUtility::get_singleton()->get_task_icon(task_meta);
 
@@ -487,11 +512,16 @@ void TaskPalette::refresh() {
 		sec->connect(LW_NAME(task_button_pressed), callable_mp(this, &TaskPalette::_on_task_button_pressed));
 		sec->connect(LW_NAME(task_button_rmb), callable_mp(this, &TaskPalette::_on_task_button_rmb));
 		sections->add_child(sec);
-		sec->set_collapsed(!dialog_mode && collapsed_sections.has(cat));
+		sec->set_folded(!dialog_mode && collapsed_sections.has(cat));
 	}
 
-	if (!dialog_mode && !filter_edit->get_text().is_empty()) {
-		_apply_filter(filter_edit->get_text());
+	fav_section->set_folded(collapsed_sections.has(fav_section->get_title()));
+
+	if (!dialog_mode) {
+		_refresh_favorites();
+		if (!filter_edit->get_text().is_empty()) {
+			_apply_filter(filter_edit->get_text());
+		}
 	}
 }
 
@@ -565,8 +595,11 @@ void TaskPalette::_notification(int p_what) {
 			Array collapsed_sections;
 			for (int i = 0; i < sections->get_child_count(); i++) {
 				TaskPaletteSection *sec = Object::cast_to<TaskPaletteSection>(sections->get_child(i));
-				if (sec->is_collapsed()) {
-					collapsed_sections.push_back(sec->get_category_name());
+				if (!sec) {
+					continue;
+				}
+				if (sec->is_folded()) {
+					collapsed_sections.push_back(sec->get_title());
 				}
 			}
 			cf->set_value("LimboAI", "task_palette_collapsed_sections", collapsed_sections);
@@ -606,7 +639,6 @@ void TaskPalette::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("refresh"), &TaskPalette::refresh);
 
 	ADD_SIGNAL(MethodInfo("task_selected"));
-	ADD_SIGNAL(MethodInfo("favorite_tasks_changed"));
 }
 
 TaskPalette::TaskPalette() {
@@ -644,6 +676,17 @@ TaskPalette::TaskPalette() {
 	sections->set_h_size_flags(SIZE_EXPAND_FILL);
 	sections->set_v_size_flags(SIZE_EXPAND_FILL);
 	sc->add_child(sections);
+
+	fav_section = memnew(TaskPaletteSection);
+	fav_section->set_title(TTR(U"★ Favorites"));
+	fav_section->connect(LW_NAME(task_button_pressed), callable_mp(this, &TaskPalette::_on_task_button_pressed));
+	fav_section->connect(LW_NAME(task_button_rmb), callable_mp(this, &TaskPalette::_on_task_button_rmb));
+	fav_section->hide();
+	sections->add_child(fav_section);
+
+	fav_separator = memnew(HSeparator);
+	fav_separator->hide();
+	sections->add_child(fav_separator);
 
 	menu = memnew(PopupMenu);
 	add_child(menu);

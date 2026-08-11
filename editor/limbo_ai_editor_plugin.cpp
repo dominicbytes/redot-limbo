@@ -32,14 +32,10 @@
 #include "../util/limbo_utility.h"
 #include "../util/limboai_version.h"
 #include "action_banner.h"
-#include "blackboard_plan_editor.h"
-#include "debugger/limbo_debugger_plugin.h"
-#include "editor_property_bb_param.h"
-#include "editor_property_property_path.h"
-#include "editor_property_variable_name.h"
 
 #ifdef LIMBOAI_MODULE
 #include "core/input/input.h"
+#include "core/object/callable_mp.h"
 #include "editor/debugger/editor_debugger_node.h"
 #include "editor/debugger/script_editor_debugger.h"
 #include "editor/docks/filesystem_dock.h"
@@ -48,6 +44,7 @@
 #include "editor/script/script_editor_plugin.h"
 #include "editor/settings/project_settings_editor.h"
 #include "scene/gui/separator.h"
+#include "servers/display/display_server.h"
 #endif // LIMBOAI_MODULE
 
 #ifdef LIMBOAI_GDEXTENSION
@@ -378,13 +375,7 @@ void LimboAIEditor::get_window_layout(const Ref<ConfigFile> &p_configuration) {
 		open_bts.push_back(bt->get_path());
 	}
 	p_configuration->set_value("LimboAI", "bteditor_open_bts", open_bts);
-
-	int split_offset = hsc->get_split_offset();
-	if (editor_layout != (int)EDITOR_GET("limbo_ai/editor/layout")) {
-		// Editor layout settings changed - flip split offset.
-		split_offset *= -1;
-	}
-	p_configuration->set_value("LimboAI", "bteditor_hsplit", split_offset);
+	p_configuration->set_value("LimboAI", "bteditor_hsplit", hsc->get_split_offset());
 }
 
 void LimboAIEditor::_set_as_dirty(const Ref<BehaviorTree> &p_bt, bool p_dirty) {
@@ -542,6 +533,7 @@ void LimboAIEditor::_process_shortcut_input(const Ref<InputEvent> &p_event) {
 }
 
 void LimboAIEditor::_on_tree_rmb(const Vector2 &p_menu_pos) {
+	context_menu_position = p_menu_pos;
 	menu->clear();
 
 	Vector<Ref<BTTask>> selection = task_tree->get_selected_tasks();
@@ -655,14 +647,16 @@ void LimboAIEditor::_action_selected(int p_id) {
 		case ACTION_CHANGE_TYPE: {
 			change_type_palette->clear_filter();
 			change_type_palette->refresh();
-			Rect2 rect = Rect2(get_global_mouse_position(), Size2(400.0, 600.0) * EDSCALE);
-			change_type_popup->popup(rect);
+			change_type_popup->reset_size();
+			change_type_popup->set_position(context_menu_position);
+			change_type_popup->set_size(Size2(400.0, 600.0) * EDSCALE);
+			change_type_popup->popup();
+			change_type_palette->focus_filter();
 		} break;
 		case ACTION_EDIT_PROBABILITY: {
 			Rect2 rect = task_tree->get_selected_probability_rect();
 			ERR_FAIL_COND(rect == Rect2());
 			rect.position.y += rect.size.y;
-			rect.position += task_tree->get_rect().position;
 			rect = task_tree->get_screen_transform().xform(rect);
 			_update_probability_edit();
 			probability_popup->popup(rect);
@@ -918,16 +912,7 @@ void LimboAIEditor::_misc_option_selected(int p_id) {
 		case MISC_PROJECT_SETTINGS: {
 			_edit_project_settings();
 		} break;
-		case MISC_LAYOUT_CLASSIC: {
-			EDITOR_SETTINGS()->set_setting("limbo_ai/editor/layout", LAYOUT_CLASSIC);
-			EDITOR_SETTINGS()->mark_setting_changed("limbo_ai/editor/layout");
-			_update_banners();
-		} break;
-		case MISC_LAYOUT_WIDESCREEN_OPTIMIZED: {
-			EDITOR_SETTINGS()->set_setting("limbo_ai/editor/layout", LAYOUT_WIDESCREEN_OPTIMIZED);
-			EDITOR_SETTINGS()->mark_setting_changed("limbo_ai/editor/layout");
-			_update_banners();
-		} break;
+
 		case MISC_CREATE_SCRIPT_TEMPLATE: {
 			String template_path = _get_script_template_path();
 			String template_dir = template_path.get_base_dir();
@@ -1023,7 +1008,6 @@ void LimboAIEditor::_on_visibility_changed() {
 		task_palette->refresh();
 		_update_banners();
 	}
-	_update_favorite_tasks();
 
 	if (request_update_tabs && history.size() > 0) {
 		_update_tabs();
@@ -1453,38 +1437,6 @@ void LimboAIEditor::save_all(bool p_external_only) {
 	}
 }
 
-void LimboAIEditor::_update_favorite_tasks() {
-	for (int i = 0; i < fav_tasks_hbox->get_child_count(); i++) {
-		fav_tasks_hbox->get_child(i)->queue_free();
-	}
-	Array favorite_tasks = GLOBAL_GET("limbo_ai/behavior_tree/favorite_tasks");
-	for (int i = 0; i < favorite_tasks.size(); i++) {
-		String task_meta = favorite_tasks[i];
-
-		if (task_meta.is_empty() || (!FILE_EXISTS(task_meta) && !ClassDB::class_exists(task_meta))) {
-			callable_mp(this, &LimboAIEditor::_update_banners).call_deferred();
-			continue;
-		}
-
-		Button *btn = memnew(Button);
-		String task_name;
-		if (task_meta.begins_with("res:")) {
-			task_name = task_meta.get_file().get_basename().trim_prefix("BT").to_pascal_case();
-		} else {
-			task_name = task_meta.trim_prefix("BT");
-		}
-		btn->set_text(task_name);
-		btn->set_meta(LW_NAME(task_meta), task_meta);
-		btn->set_button_icon(LimboUtility::get_singleton()->get_task_icon(task_meta));
-		btn->set_tooltip_text(vformat(TTR("Add %s task."), task_name));
-		btn->set_flat(true);
-		btn->add_theme_constant_override(LW_NAME(icon_max_width), 16 * EDSCALE); // Force user icons to be of the proper size.
-		btn->set_focus_mode(Control::FOCUS_NONE);
-		btn->connect(LW_NAME(pressed), callable_mp(this, &LimboAIEditor::_add_task_by_class_or_path).bind(task_meta));
-		fav_tasks_hbox->add_child(btn);
-	}
-}
-
 void LimboAIEditor::_update_misc_menu() {
 	PopupMenu *misc_menu = misc_btn->get_popup();
 
@@ -1500,20 +1452,6 @@ void LimboAIEditor::_update_misc_menu() {
 	misc_menu->add_icon_shortcut(theme_cache.open_debugger_icon, LW_GET_SHORTCUT("limbo_ai/open_debugger"), MISC_OPEN_DEBUGGER);
 #endif // LIMBOAI_MODULE
 	misc_menu->add_item(TTR("Project Settings..."), MISC_PROJECT_SETTINGS);
-
-	PopupMenu *layout_menu = Object::cast_to<PopupMenu>(misc_menu->get_node_or_null(NodePath("LayoutMenu")));
-	if (layout_menu == nullptr) {
-		layout_menu = memnew(PopupMenu);
-		layout_menu->set_name("LayoutMenu");
-		layout_menu->connect(LW_NAME(id_pressed), callable_mp(this, &LimboAIEditor::_misc_option_selected));
-		misc_menu->add_child(layout_menu);
-		layout_menu->add_radio_check_item(TTR("Classic"), MISC_LAYOUT_CLASSIC);
-		layout_menu->add_radio_check_item(TTR("Widescreen Optimized"), MISC_LAYOUT_WIDESCREEN_OPTIMIZED);
-	}
-	misc_menu->add_submenu_item(TTR("Layout"), "LayoutMenu");
-	EditorLayout saved_layout = (EditorLayout)(int)EDITOR_GET("limbo_ai/editor/layout");
-	layout_menu->set_item_checked(0, saved_layout == LAYOUT_CLASSIC);
-	layout_menu->set_item_checked(1, saved_layout == LAYOUT_WIDESCREEN_OPTIMIZED);
 
 	misc_menu->add_separator();
 	misc_menu->add_item(
@@ -1559,15 +1497,6 @@ void LimboAIEditor::_update_banners() {
 			banner->set_meta(LW_NAME(managed), Variant(true));
 			banners->add_child(banner);
 		}
-	}
-
-	EditorLayout saved_layout = (EditorLayout)(int)EDITOR_GET("limbo_ai/editor/layout");
-	if (saved_layout != editor_layout) {
-		ActionBanner *banner = memnew(ActionBanner);
-		banner->set_text(TTR("Restart required to apply changes to editor layout"));
-		banner->add_action(TTR("Save & Restart"), callable_mp(this, &LimboAIEditor::_save_and_restart), true);
-		banner->set_meta(LW_NAME(managed), Variant(true));
-		banners->add_child(banner);
 	}
 }
 
@@ -1623,7 +1552,6 @@ void LimboAIEditor::_notification(int p_what) {
 			misc_btn->connect(LW_NAME(pressed), callable_mp(this, &LimboAIEditor::_update_misc_menu));
 			misc_btn->get_popup()->connect("id_pressed", callable_mp(this, &LimboAIEditor::_misc_option_selected));
 			task_palette->connect("task_selected", callable_mp(this, &LimboAIEditor::_add_task_by_class_or_path));
-			task_palette->connect("favorite_tasks_changed", callable_mp(this, &LimboAIEditor::_update_favorite_tasks));
 			change_type_palette->connect("task_selected", callable_mp(this, &LimboAIEditor::_task_type_selected));
 			menu->connect("id_pressed", callable_mp(this, &LimboAIEditor::_action_selected));
 			weight_mode->connect(LW_NAME(pressed), callable_mp(this, &LimboAIEditor::_update_probability_edit));
@@ -1655,8 +1583,6 @@ void LimboAIEditor::_notification(int p_what) {
 			save_btn->set_button_icon(get_theme_icon(LW_NAME(Save), LW_NAME(EditorIcons)));
 			new_script_btn->set_button_icon(get_theme_icon(LW_NAME(ScriptCreate), LW_NAME(EditorIcons)));
 			misc_btn->set_button_icon(get_theme_icon(LW_NAME(Tools), LW_NAME(EditorIcons)));
-
-			_update_favorite_tasks();
 		} break;
 		case EditorSettings::NOTIFICATION_EDITOR_SETTINGS_CHANGED: {
 			if (is_visible_in_tree()) {
@@ -1688,19 +1614,6 @@ LimboAIEditor::LimboAIEditor() {
 	dummy_history_context = memnew(Object);
 
 	EDITOR_DEF("limbo_ai/editor/prefer_online_documentation", false);
-
-	EDITOR_DEF("limbo_ai/editor/layout", 0);
-#ifdef LIMBOAI_MODULE
-	EDITOR_SETTINGS()->add_property_hint(PropertyInfo(Variant::INT, "limbo_ai/editor/layout", PROPERTY_HINT_ENUM, "Classic:0,Widescreen Optimized:1"));
-	EDITOR_SETTINGS()->set_restart_if_changed("limbo_ai/editor/layout", true);
-#elif LIMBOAI_GDEXTENSION
-	Dictionary pinfo;
-	pinfo["name"] = "limbo_ai/editor/layout";
-	pinfo["type"] = Variant::INT;
-	pinfo["hint"] = PROPERTY_HINT_ENUM;
-	pinfo["hint_string"] = "Classic:0,Widescreen Optimized:1";
-	EDITOR_SETTINGS()->add_property_info(pinfo);
-#endif
 
 	LW_SHORTCUT("limbo_ai/rename_task", TTR("Rename"), LW_KEY(F2));
 	// Todo: Add override support for shortcuts.
@@ -1762,11 +1675,6 @@ LimboAIEditor::LimboAIEditor() {
 	favorite_tasks_default.append("BTSequence");
 	favorite_tasks_default.append("BTComment");
 	GLOBAL_DEF(PropertyInfo(Variant::PACKED_STRING_ARRAY, "limbo_ai/behavior_tree/favorite_tasks", PROPERTY_HINT_ARRAY_TYPE, "String"), favorite_tasks_default);
-
-	fav_tasks_hbox = memnew(HBoxContainer);
-	toolbar->add_child(fav_tasks_hbox);
-
-	toolbar->add_child(memnew(VSeparator));
 
 	new_btn = memnew(Button);
 	new_btn->set_text(TTR("New"));
@@ -1880,9 +1788,8 @@ LimboAIEditor::LimboAIEditor() {
 	banners = memnew(VBoxContainer);
 	vbox->add_child(banners);
 
-	editor_layout = (EditorLayout)(int)EDITOR_GET("limbo_ai/editor/layout");
-	if (editor_layout == LAYOUT_WIDESCREEN_OPTIMIZED) {
-		// * Alternative layout optimized for wide screen.
+	{
+		// * Widescreen layout.
 		VBoxContainer *sidebar_vbox = memnew(VBoxContainer);
 		hsc->add_child(sidebar_vbox);
 		sidebar_vbox->set_v_size_flags(SIZE_EXPAND_FILL);
@@ -1912,7 +1819,7 @@ LimboAIEditor::LimboAIEditor() {
 		banners->reparent(editor_vbox);
 	}
 
-	hsc->set_split_offset((editor_layout == LAYOUT_CLASSIC ? -320 : 320) * EDSCALE);
+	hsc->set_split_offset(320 * EDSCALE);
 
 	change_type_popup = memnew(PopupPanel);
 	add_child(change_type_popup);
@@ -2036,21 +1943,6 @@ void LimboAIEditorPlugin::_bind_methods() {
 
 void LimboAIEditorPlugin::_notification(int p_notification) {
 	switch (p_notification) {
-		case NOTIFICATION_READY: {
-			add_debugger_plugin(memnew(LimboDebuggerPlugin));
-			add_inspector_plugin(memnew(EditorInspectorPluginBBPlan));
-
-			EditorInspectorPluginVariableName *var_plugin = memnew(EditorInspectorPluginVariableName);
-			var_plugin->set_editor_plan_provider(Callable(limbo_ai_editor, "get_edited_blackboard_plan"));
-			add_inspector_plugin(var_plugin);
-
-			EditorInspectorPluginPropertyPath *path_plugin = memnew(EditorInspectorPluginPropertyPath);
-			add_inspector_plugin(path_plugin);
-
-			EditorInspectorPluginBBParam *param_plugin = memnew(EditorInspectorPluginBBParam);
-			param_plugin->set_plan_getter(Callable(limbo_ai_editor, "get_edited_blackboard_plan"));
-			add_inspector_plugin(param_plugin);
-		} break;
 		case NOTIFICATION_ENTER_TREE: {
 			// Add BehaviorTree to the list of resources that should open in a new inspector.
 			PackedStringArray open_in_new_inspector = EDITOR_GET("interface/inspector/resources_to_open_in_new_inspector");
@@ -2058,6 +1950,30 @@ void LimboAIEditorPlugin::_notification(int p_notification) {
 				open_in_new_inspector.push_back("BehaviorTree");
 				EDITOR_SETTINGS()->set_setting("interface/inspector/resources_to_open_in_new_inspector", open_in_new_inspector);
 			}
+
+			debugger_plugin = Ref<LimboDebuggerPlugin>(memnew(LimboDebuggerPlugin));
+			add_debugger_plugin(debugger_plugin);
+
+			plan_plugin = Ref<EditorInspectorPluginBBPlan>(memnew(EditorInspectorPluginBBPlan));
+			add_inspector_plugin(plan_plugin);
+
+			var_plugin = Ref<EditorInspectorPluginVariableName>(memnew(EditorInspectorPluginVariableName));
+			var_plugin->set_editor_plan_provider(Callable(limbo_ai_editor, "get_edited_blackboard_plan"));
+			add_inspector_plugin(var_plugin);
+
+			path_plugin = Ref<EditorInspectorPluginPropertyPath>(memnew(EditorInspectorPluginPropertyPath));
+			add_inspector_plugin(path_plugin);
+
+			param_plugin = Ref<EditorInspectorPluginBBParam>(memnew(EditorInspectorPluginBBParam));
+			param_plugin->set_plan_getter(Callable(limbo_ai_editor, "get_edited_blackboard_plan"));
+			add_inspector_plugin(param_plugin);
+		} break;
+		case NOTIFICATION_EXIT_TREE: {
+			remove_debugger_plugin(debugger_plugin);
+			remove_inspector_plugin(plan_plugin);
+			remove_inspector_plugin(var_plugin);
+			remove_inspector_plugin(path_plugin);
+			remove_inspector_plugin(param_plugin);
 		} break;
 	}
 }

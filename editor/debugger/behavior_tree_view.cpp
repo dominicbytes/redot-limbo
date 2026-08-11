@@ -22,6 +22,7 @@
 
 #ifdef LIMBOAI_MODULE
 #include "core/config/engine.h"
+#include "core/object/callable_mp.h"
 #include "core/os/time.h"
 #endif // LIMBOAI_MODULE
 
@@ -48,16 +49,22 @@ inline static String item_get_task_script_path(TreeItem *p_item) {
 
 void BehaviorTreeView::_draw_running_status(Object *p_obj, Rect2 p_rect) {
 	p_rect = p_rect.grow_side(SIDE_LEFT, p_rect.get_position().x);
+	p_rect = p_rect.grow_side(SIDE_TOP, theme_cache.tree_inner_margin_top);
+	p_rect = p_rect.grow_side(SIDE_BOTTOM, theme_cache.tree_inner_margin_bottom);
 	theme_cache.sbf_running->draw(tree->get_canvas_item(), p_rect);
 }
 
 void BehaviorTreeView::_draw_success_status(Object *p_obj, Rect2 p_rect) {
 	p_rect = p_rect.grow_side(SIDE_LEFT, p_rect.get_position().x);
+	p_rect = p_rect.grow_side(SIDE_TOP, theme_cache.tree_inner_margin_top);
+	p_rect = p_rect.grow_side(SIDE_BOTTOM, theme_cache.tree_inner_margin_bottom);
 	theme_cache.sbf_success->draw(tree->get_canvas_item(), p_rect);
 }
 
 void BehaviorTreeView::_draw_failure_status(Object *p_obj, Rect2 p_rect) {
 	p_rect = p_rect.grow_side(SIDE_LEFT, p_rect.get_position().x);
+	p_rect = p_rect.grow_side(SIDE_TOP, theme_cache.tree_inner_margin_top);
+	p_rect = p_rect.grow_side(SIDE_BOTTOM, theme_cache.tree_inner_margin_bottom);
 	theme_cache.sbf_failure->draw(tree->get_canvas_item(), p_rect);
 }
 
@@ -226,6 +233,14 @@ void BehaviorTreeView::_update_tree(const Ref<BehaviorTreeData> &p_data) {
 	}
 }
 
+uint64_t BehaviorTreeView::get_selected_task_id() const {
+	TreeItem *selected = tree->get_selected();
+	if (selected) {
+		return item_get_task_id(selected);
+	}
+	return 0;
+}
+
 void BehaviorTreeView::clear() {
 	tree->clear();
 	collapsed_ids.clear();
@@ -238,6 +253,9 @@ void BehaviorTreeView::_do_update_theme_item_cache() {
 	theme_cache.icon_failure = LimboUtility::get_singleton()->get_task_icon("BTAlwaysFail");
 
 	theme_cache.font_custom_name = get_theme_font(LW_NAME(bold), LW_NAME(EditorFonts));
+
+	theme_cache.tree_inner_margin_top = tree->get_theme_constant("inner_item_margin_top");
+	theme_cache.tree_inner_margin_bottom = tree->get_theme_constant("inner_item_margin_bottom");
 
 	Color running_border = Color::html("#fea900");
 	Color running_fill = Color(running_border, 0.1);

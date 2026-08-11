@@ -17,6 +17,7 @@
 #include "modules/limboai/hsm/limbo_hsm.h"
 #include "modules/limboai/hsm/limbo_state.h"
 
+#include "core/object/callable_mp.h"
 #include "core/object/object.h"
 #include "core/object/ref_counted.h"
 #include "core/os/memory.h"
@@ -37,6 +38,10 @@ void _on_enter_dispatch(LimboState *p_state, StringName p_event) {
 
 void _on_enter_set_initial_state(LimboHSM *p_state, LimboState *p_initial) {
 	p_state->set_initial_state(p_initial);
+}
+
+void _on_enter_get_cargo(LimboState *p_state, const Variant &expected_cargo) {
+	CHECK(p_state->get_cargo() == expected_cargo);
 }
 
 // Helper function to simulate scene tree idle process notifications
@@ -233,6 +238,16 @@ TEST_CASE("[Modules][LimboAI] HSM") {
 		CHECK(beta_entries->num_callbacks == 1);
 		CHECK(beta_updates->num_callbacks == 0);
 		CHECK(beta_exits->num_callbacks == 1);
+	}
+	SUBCASE("Test get_cargo() inside and outside _enter()") {
+		const int DATA = 25;
+		Variant cargo = DATA;
+		state_beta->connect("entered",
+				callable_mp_static(_on_enter_get_cargo).bind(state_beta, cargo));
+		hsm->dispatch("event_one", cargo);
+		REQUIRE(hsm->get_active_state() == state_beta);
+		CHECK(state_beta->get_cargo() == Variant()); // * cargo was cleared, null object is returned
+		CHECK((int)cargo == DATA); // * initial variant wasn't modified
 	}
 	SUBCASE("Test setting initial_state on enter") {
 		// Setting initial state on HSM enter should be allowed.

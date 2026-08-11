@@ -1,69 +1,51 @@
-# LimboAI v1.8.0 versus selected v1.6.0
+# LimboAI v1.8.0 adopted baseline and Redot delta
 
-Date: 2026-08-10
-Selected: `v1.6.0` / `91b22a187f7cd701e25eedd6dcff34179795e687`
-Newest evaluated: `v1.8.0` / `3fbd85118b924d50c10a495ad5c7175028649d77`
+Date: 2026-08-11
 
-`v1.8.0` is not a viable Redot 26.2 baseline because it advances the binding
-and project content to Godot 4.6 and then adds 4.7 compatibility work. The
-selected 1.6 source builds unchanged on the 4.5.2 lineage. The 48 later
-non-merge commits are dispositioned below; merge commits add no independent
-change beyond these rows.
+- Previous compatibility checkpoint: `v1.6.0@91b22a187f7cd701e25eedd6dcff34179795e687`
+- Selected feature baseline: `v1.8.0@3fbd85118b924d50c10a495ad5c7175028649d77`
+- Range: 56 commits, including 48 non-merge commits
+- Result: all upstream source changes in the immutable 1.8 tag are adopted
 
-## Backport or adopt
+The earlier 1.6 port established that Redot 26.2 exposes a usable 4.5.2-lineage
+GDExtension contract. The owner then selected the full 1.8 feature baseline.
+This update merges the exact upstream tag and adapts only failures demonstrated
+by Redot compilation, editor initialization, or demo execution.
 
-| Upstream commit | Disposition | Downstream evidence |
+## Adopted upstream 1.7 feature work
+
+| Area | Adopted commits and behavior | Redot evidence |
 | --- | --- | --- |
-| `5c80b25` BTCallMethod argument lifetime | Backport | Cherry-picked as `5567065`; runtime fixture passes. |
-| `b06f54e` blackboard self-parent guard | Backport | Cherry-picked as `7a9ca78`; blackboard contract passes. |
-| `d352989` macOS command shortcuts | Backport | Cherry-picked as `f1fb3f8`; native UI verification remains GNT-03. |
-| `7665282` clone deep copy | Backport | Cherry-picked as `175fdde`; clone regression passes. |
-| `e1e31cd` inspector refresh after duplication | Backport | Cherry-picked as `9a296cb`; visible editor retest remains GNT-03. |
-| `8501131` debugger message unregistration | Backport | Cherry-picked as `ea1c2d8`; headless shutdown is clean. |
-| `567d783` missing plan-editor hints | Backport with guard | The three 4.5 hints are enabled only for module builds or GDExtension API 4.5+. Five repeated Redot runs pass, and the guarded code compiles against the selected 4.4 Godot oracle. |
-| `91545e3`, `215e4fa`, `ea90b0c` later tests | Adopt test intent | Blackboard-plan and deep-clone behavior are represented in the extension fixture. |
-| `3adc3d9` versioned documentation URL | Adopt pattern | Downstream `doc_branch` is `v1.6.0`. |
-| `78ef8c3` pin CI actions | Adopt pattern | New Redot workflow pins checkout/upload/download actions by full SHA. |
+| Task palette and favorites | `6185835`, `a0eba33`, `84a72cb`, `7b42767`, `46c143c`, `c6e8165` | Source retained; Redot editor initializes. The missing Godot 4.6 theme-setting lookup has a Redot fallback. |
+| Task-tree visuals and popups | `8598130`, `ef43b55`, `ab999dc`, `9880722`, `bdf179d`, `7204573`, `7896201` | Source retained; editor classes load. Visible UX remains an explicit gauntlet. |
+| HSM transition cargo | `7eaca38` | A dedicated fixture dispatches cargo `25`, observes it in the entered state, and verifies it is cleared afterward. |
+| Runtime blackboard inspection | `68814e1` | A dedicated fixture enumerates scoped dynamic properties, reads parent/local values, and edits the parent through the inspection path. |
+| Plan editor and documentation | `567d783`, `3adc3d9`, `50cfbd4`, `6339b7b` | Source retained; 4.5 property hints stay guarded and downstream docs target `v1.8.0`. |
+| Runtime and editor fixes | `5c80b25`, `b06f54e`, `d352989`, `7665282`, `e1e31cd` | Source retained; clone, blackboard, runtime, and editor initialization checks pass. |
+| Upstream tests/versioning | `91545e3`, `215e4fa`, `ea90b0c`, `bd207b5`, `e7b056e`, `e2be164` | Test intent is represented by the GDExtension fixture; final downstream version is `1.8.0+redot.26.2.1`. |
 
-## Rejected
+## Adopted upstream 1.8 safety and build work
 
-| Upstream commit | Disposition | Reason |
+The complete source retains `7687192`, `c1baa45`, `d739460`, `8ac5462`,
+`1277ce5`, `91d02b2`, `9a3a2d4`, `5decbe6`, `6bde12f`, `8501131`, and
+`7b3c628`, including the broader `Ref` ownership safety work, missing headers,
+editor shutdown fix, GDExtension compile fixes, debugger unregistration, and
+dev-build error macros. The 4.6/4.7 baseline/build commits `a2aa156`, `33be10a`,
+`a6394cb`, `ec3497e`, `5e9fa65`, `060d1a5`, `78ef8c3`, and the final
+`3fbd851` version commit are also present. Redot-specific dependency and CI
+locks replace upstream engine-selection behavior without removing LimboAI
+features.
+
+## Downstream deviations from the exact tag
+
+| File/area | Redot adaptation | Reason |
 | --- | --- | --- |
-| `9a3a2d4` editor-close crash fix | Reject | The commit responds to Godot `658a237` (floating debugger-dock lifecycle), which is absent from the selected 4.5 lineage. Immediate shutdown was also found to race unchanged v1.6, so it is not valid evidence for importing this 4.6-only ownership change. |
+| `editor/limbo_ai_editor_plugin.cpp` | Construct five stored editor-plugin references as explicit `Ref<T>` values. | The locked Redot C++ binding rejects ambiguous raw-pointer assignment. |
+| `editor/task_palette.cpp` | Use the upstream Modern-style check when available; otherwise use flat buttons. | Redot 26.2 uses the modern editor but lacks Godot 4.6's `interface/theme/style` setting. |
+| Five demo `.tscn` files | Serialize `AnimationPlayer.libraries` as an equivalent dictionary. | Redot 26.2 loads the 4.6 shorthand without attaching the library, causing missing-animation runtime errors. |
+| `util/limbo_utility.cpp` | Retain API-version guards around three property-hint families. | Keeps the source valid for the locked 4.5-lineage binding and historical 4.4 checkpoint. |
+| Build/manifest/version files | Fail-closed Redot binding validation, desktop-only mappings, deterministic paths, and downstream version metadata. | Required for reproducible Redot artifacts; no runtime feature is removed. |
+| Tests, reports, and package scripts | Add Redot fixture, binary audits, rights separation, deterministic packaging, and evidence. | Downstream verification and distribution infrastructure. |
 
-## Deferred: 4.6/4.7 baseline, release, and build work
-
-These commits are deliberately not mixed into a 4.5.2-lineage port:
-
-`a2aa156` README 4.6 support; `33be10a` API 4.6; `a6394cb` demo 4.6
-formats; `bd207b5` 1.7-dev version; `6339b7b` 1.7 support docs; `e7b056e`
-1.7.0 version; `e2be164` 1.7.1 version; `ec3497e` Godot 4.7 build deps;
-`5e9fa65` reusable 4.7 workflow ref resolution; `060d1a5` later artifact
-version labeling; and `3fbd851` 1.8.0 version.
-
-## Deferred: later editor and debugger features
-
-These changes form the 1.7 editor experience or rely on its surrounding UI;
-none is required by a failing 1.6 oracle:
-
-`6185835` FoldableContainer task palette; `a0eba33` favorite relocation;
-`84a72cb` classic-layout removal; `7b42767` modern flat buttons; `46c143c`
-GDExtension tooltip removal; `c6e8165` module tooltip fix; `8598130` status
-highlight gaps; `ef43b55` probability pill sizing; `ab999dc` probability
-overlay; `9880722` probability popup placement; `bdf179d` change-type popup
-placement; `7204573` change-type filter focus; `7896201` external-editor
-double-click behavior; `68814e1` blackboard runtime inspector; and `50cfbd4`
-Input header in the later blackboard plan editor.
-
-## Deferred: later behavior and 4.6/4.7 compile safety
-
-- `7eaca38`: transition-event cargo is a new HSM feature, not a 1.6 repair.
-- `7687192`, `c1baa45`, `d739460`, `8ac5462`, `91d02b2`, `5decbe6`,
-  `6bde12f`, and `7b3c628`: later missing-header, 4.6/4.7 binding, and
-  dev-build compatibility changes are unnecessary in the locked Redot build.
-- `1277ce5`: broader `Ref` ownership refactor is deferred because the selected
-  baseline and memory-sensitive fixture pass; taking it independently would
-  exceed the smallest-proven-delta rule.
-
-Deferred does not mean rejected permanently. A future baseline update must
-re-evaluate these commits as one coherent upstream move and rerun every gate.
+No upstream 1.7 or 1.8 feature commit is deferred or rejected in the selected
+baseline. Changes after `v1.8.0` remain outside this immutable port scope.

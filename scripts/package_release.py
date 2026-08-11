@@ -14,7 +14,7 @@ from typing import Callable
 import zipfile
 
 
-VERSION = "1.6.0+redot.26.2.1"
+VERSION = "1.8.0+redot.26.2.1"
 FIXED_ZIP_TIME = (1980, 1, 1, 0, 0, 0)
 CORE_DOCS = (
     "README.md",

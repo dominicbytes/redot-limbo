@@ -2,43 +2,51 @@
 
 ## Completed locally
 
-- [x] Fetch full upstream history and select/pin LimboAI 1.6.0.
-- [x] Build and run the unchanged 1.6.0 Godot oracle and unchanged Redot probe.
+- [x] Fetch full upstream history and lock exact LimboAI
+  `v1.8.0@3fbd85118b924d50c10a495ad5c7175028649d77`.
+- [x] Account for all 48 non-merge commits between the v1.6 compatibility
+  checkpoint and v1.8; adopt the complete range.
 - [x] Reproduce the official Redot 26.2 API and lock Redot C++.
 - [x] Replace automatic dependency cloning with a fail-closed build contract.
-- [x] Backport the isolated accepted fixes and exclude the 4.6-only lifecycle
-  backport whose triggering engine change is absent from Redot's 4.5 lineage.
-- [x] Implement typed-GDScript BT, blackboard, resource, multi-agent, HSM,
-  custom-task, runtime-view, and performance fixtures.
-- [x] Match Godot and Redot normalized fixture semantics.
-- [x] Build, audit, and run Windows editor/template-release libraries.
-- [x] Build and audit Linux editor/template-release libraries and run the exact
-  release library in a packed exported-runtime fixture.
+- [x] Preserve the 1.8 task-palette/favorites/probability/status/debugger work,
+  ownership fixes, HSM cargo, and blackboard runtime inspection.
+- [x] Add the narrow Redot editor/theme/demo-serialization compatibility
+  changes exposed by build and runtime failures.
+- [x] Expand the deterministic fixture to 13 cases, including direct checks
+  for transition cargo and scoped runtime blackboard inspection.
+- [x] Pass Windows and Linux editor/template-release builds and all 13 fixture
+  cases with zero suspicious runtime lines.
+- [x] Fresh-import, statically check 71 files, and run the complete 1.8 demo in
+  Redot without parse, load, runtime, or warning output.
 - [x] Cross-build and structurally audit macOS universal editor and
-  template-release frameworks with stable install identities.
-- [x] Implement pinned native desktop CI and deterministic core/demo packaging.
-- [x] Produce core/demo archives twice from clean commit `f51be6ba` and verify
-  byte-identical output plus file-level rights inventories.
-- [x] Extract the final core archive and pass all 11 cases with zero suspicious
-  lines on Windows and Ubuntu 24.04 editor/template-release runs.
-- [x] Rebuild and pass the 89-file packed Linux fixture from the final core
-  archive's exact release library.
+  template-release frameworks.
+- [x] Keep pinned native desktop CI and deterministic core/demo packaging
+  aligned with version `1.8.0+redot.26.2.1`.
 - [x] Classify source, logo, demo graphics, and both font licenses.
-- [x] Write compatibility, limitations, migration, notices, and package docs.
+- [x] Update compatibility, limitations, migration, baseline-delta, and
+  upstream-sync documentation for the adopted 1.8 baseline.
+
+## Remaining in this implementation task
+
+- [ ] Rebuild the six final desktop libraries from the committed v1.8 port so
+  embedded version metadata identifies the source commit.
+- [ ] Re-run binary audits and Windows/Linux clean-install fixtures using the
+  final libraries.
+- [ ] Produce the core/demo archives twice from a clean commit and verify
+  byte-identical bytes plus file-level rights inventories.
+- [ ] Reconcile final platform/archive hashes and verdicts into the reports and
+  source-of-truth workbook.
+- [ ] Push the completed source branch to `dominicbytes/redot-limbo` and mark
+  the repository description as the Redot port.
 
 ## Required before a release claim
 
 - [ ] Run the native macOS CI job and retain universal binary/runtime evidence.
 - [ ] Complete GNT-03's visible editor, accessibility, debugger, and lifecycle
   session at both UI profiles.
-- [ ] Complete the plan's full five-run performance/oracle matrix; automated
-  200-agent smoke samples pass but do not satisfy that controlled claim.
-- [ ] Rerun deterministic packaging if native macOS CI changes either audited
-  macOS framework; current local archives already match across two clean runs.
+- [ ] Complete the plan's full five-run performance matrix; automated
+  200-agent smoke samples do not satisfy that controlled claim.
 - [ ] Run and record visible clean-install authoring plus native Windows/macOS
-  game exports; headless Windows/Linux clean installs and Linux packed runtime
-  already pass.
-- [x] Reconcile final platform/archive hashes and verdicts into the
-  source-of-truth workbook.
-- [ ] Obtain explicit owner authorization before any push, tag, public release,
-  signing, or notarization action.
+  game exports.
+- [ ] Obtain explicit owner authorization before any tag, GitHub release,
+  signing, notarization, or distribution-channel publication.

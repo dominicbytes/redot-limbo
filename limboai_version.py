@@ -1,11 +1,11 @@
 # Edit the following variables to change version info
 
 major = 1
-minor = 6
+minor = 8
 patch = 0
 status = ""
 downstream = "redot.26.2.1"
-doc_branch = "v1.6.0"
+doc_branch = "v1.8.0"
 
 # *** Code that generates version header
 
@@ -68,8 +68,6 @@ def generate_module_version_header():
 #define LIMBOAI_VERSION_DOC_URL "https://limboai.readthedocs.io/en/" LIMBOAI_VERSION_DOC_BRANCH "/"
 
 #endif // LIMBOAI_VERSION_GEN_H
-""".format(
-            **version_info
-        )
+""".format(**version_info)
     )
     f.close()

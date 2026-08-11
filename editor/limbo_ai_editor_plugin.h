@@ -16,6 +16,11 @@
 
 #include "../bt/behavior_tree.h"
 #include "../bt/tasks/bt_task.h"
+#include "blackboard_plan_editor.h"
+#include "debugger/limbo_debugger_plugin.h"
+#include "editor_property_bb_param.h"
+#include "editor_property_property_path.h"
+#include "editor_property_variable_name.h"
 #include "owner_picker.h"
 #include "task_palette.h"
 #include "task_tree.h"
@@ -91,8 +96,6 @@ private:
 		MISC_DOC_INTRODUCTION,
 		MISC_DOC_CUSTOM_TASKS,
 		MISC_OPEN_DEBUGGER,
-		MISC_LAYOUT_CLASSIC,
-		MISC_LAYOUT_WIDESCREEN_OPTIMIZED,
 		MISC_PROJECT_SETTINGS,
 		MISC_CREATE_SCRIPT_TEMPLATE,
 		MISC_SEARCH_TREE
@@ -105,11 +108,6 @@ private:
 		TAB_CLOSE_OTHER,
 		TAB_CLOSE_RIGHT,
 		TAB_CLOSE_ALL,
-	};
-
-	enum EditorLayout {
-		LAYOUT_CLASSIC,
-		LAYOUT_WIDESCREEN_OPTIMIZED,
 	};
 
 	struct ThemeCache {
@@ -137,7 +135,6 @@ private:
 	} theme_cache;
 
 	EditorPlugin *plugin;
-	EditorLayout editor_layout;
 	Vector<Ref<BehaviorTree>> history;
 	int idx_history;
 	HashMap<Ref<BehaviorTree>, TreeSearch::SearchInfo> tab_search_context;
@@ -158,7 +155,7 @@ private:
 	VBoxContainer *banners;
 	Panel *usage_hint;
 	PopupMenu *menu;
-	HBoxContainer *fav_tasks_hbox;
+	Vector2 context_menu_position;
 	TaskPalette *task_palette;
 
 	PopupPanel *probability_popup;
@@ -198,7 +195,6 @@ private:
 	Ref<BTTask> _create_task_by_class_or_path(const String &p_class_or_path) const;
 	void _add_task_by_class_or_path(const String &p_class_or_path);
 	void _remove_task(const Ref<BTTask> &p_task);
-	void _update_favorite_tasks();
 	void _update_misc_menu();
 	void _update_banners();
 	void _new_bt();
@@ -283,6 +279,11 @@ class LimboAIEditorPlugin : public EditorPlugin {
 
 private:
 	LimboAIEditor *limbo_ai_editor;
+	Ref<LimboDebuggerPlugin> debugger_plugin;
+	Ref<EditorInspectorPluginBBPlan> plan_plugin;
+	Ref<EditorInspectorPluginVariableName> var_plugin;
+	Ref<EditorInspectorPluginPropertyPath> path_plugin;
+	Ref<EditorInspectorPluginBBParam> param_plugin;
 
 protected:
 	static void _bind_methods();
