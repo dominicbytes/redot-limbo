@@ -207,11 +207,13 @@ if env["target"] in ["editor", "template_debug"]:
 
 # Build library.
 if env["platform"] == "macos":
+    macos_library_name = "liblimboai.{}.{}".format(env["platform"], env["target"])
+    # Apple's linker otherwise records the absolute build output as LC_ID_DYLIB,
+    # leaking the checkout path and making otherwise identical packages differ.
+    env.Append(LINKFLAGS=["-Wl,-install_name,@rpath/" + macos_library_name])
     library = env.SharedLibrary(
         project_dir
-        + "/addons/limboai/bin/liblimboai.{}.{}.framework/liblimboai.{}.{}".format(
-            env["platform"], env["target"], env["platform"], env["target"]
-        ),
+        + "/addons/limboai/bin/{}.framework/{}".format(macos_library_name, macos_library_name),
         source=sources,
     )
 else:
