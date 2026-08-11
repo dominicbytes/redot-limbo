@@ -10,8 +10,9 @@ locks are complete.
 - State: blocked outside the local Windows host
 - Available path: `.github/workflows/redot-desktop.yml` has a pinned `macos-14`
   build, binary audit, editor fixture, and template-release fixture.
-- Release impact: blocks macOS support, deterministic complete-desktop package
-  production in CI, and GNT-04 PASS.
+- Local evidence: both cross-built universal frameworks pass architecture,
+  macOS 11.0, dependency, install-identity, export, and path-leakage audits.
+- Release impact: blocks a native macOS runtime claim and GNT-04 PASS.
 
 ## BLOCK-EDITOR-GAUNTLET: Visible editor session not performed
 
@@ -26,8 +27,9 @@ locks are complete.
 
 - Owner: Codex / authorized test host
 - State: open gate
-- Existing evidence: deterministic 32-agent isolation and 200-agent Redot and
-  Godot samples pass, but the plan's warmup plus five comparable runs and
+- Existing evidence: deterministic 32-agent isolation and four final
+  200-agent Windows/Linux samples pass, but the plan's warmup plus five
+  comparable runs and
   debugger/editor p95 measurements are not complete.
 - Release impact: blocks GNT-02/GNT-03 performance claims.
 
