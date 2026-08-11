@@ -52,3 +52,11 @@ test, cache, source checkout, credentials, and local build paths are absent.
 The demo inventory contains no native addon or build cache. Fresh Windows and
 Linux editor/release runs and an 89-file packed Linux release run pass from the
 core archive. Source publication remains separate from tag/release authority.
+
+Hosted workflow run `31476931577` independently packages commit `1470048`
+twice after successful Windows, Linux, and native macOS jobs. The two outputs
+match byte-for-byte: the 78-entry core SHA-256 is
+`1872EF8284BD4DF670717963898769470B20F5AB057116CCCD6CA11390009B9F`, and
+the 171-entry demo SHA-256 is
+`7CC10D10E725C2E7D3EB7E91A61ED9EF82B8F62684B8C68263A8116F5EAB3D1D`.
+They remain workflow evidence artifacts rather than a public release.

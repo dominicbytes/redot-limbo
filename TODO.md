@@ -41,7 +41,7 @@
 
 ## Required before a release claim
 
-- [ ] Run the native macOS CI job and retain universal binary/runtime evidence.
+- [x] Run the native macOS CI job and retain universal binary/runtime evidence.
 - [ ] Complete GNT-03's visible editor, accessibility, debugger, and lifecycle
   session at both UI profiles.
 - [ ] Complete the plan's full five-run performance matrix; automated

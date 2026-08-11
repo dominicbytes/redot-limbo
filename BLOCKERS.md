@@ -5,15 +5,17 @@ desktop build/runtime gates pass where executable on the Windows host. The
 remaining items limit release claims; they do not mean 1.8 features were
 omitted.
 
-## BLOCK-MAC-NATIVE: Native macOS result not yet executed
+## CLOSED-MAC-NATIVE: Native macOS validation complete
 
-- Owner: repository owner / hosted workflow
-- State: blocked outside the local Windows host
-- Available path: `.github/workflows/redot-desktop.yml` has a pinned `macos-14`
-  build, binary audit, editor fixture, and template-release fixture.
-- Local evidence: both cross-built universal frameworks pass architecture,
-  macOS 11.0, dependency, install-identity, export, and path-leakage audits.
-- Release impact: blocks a native macOS runtime claim and GNT-04 PASS.
+- Owner: Codex / hosted workflow
+- State: resolved by GitHub Actions run `31476931577` at source commit
+  `147004846d91a0e6292dd9d2dc7536c02db14a00`.
+- Evidence: both universal frameworks pass architecture, macOS 11.0,
+  dependency, install-identity, export, and path-leakage audits. Native editor
+  and forced template-release runs each pass all 13 fixture cases with zero
+  suspicious lines.
+- Release impact: no remaining native macOS runtime blocker; GNT-04 remains
+  blocked by the separate visible-authoring and native-export gates.
 
 ## BLOCK-EDITOR-GAUNTLET: Visible editor session not performed
 

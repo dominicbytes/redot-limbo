@@ -66,8 +66,23 @@ target, only `/usr/lib/libSystem.B.dylib`, `_limboai_init`, a stable
 `@rpath/<binary-name>` install identity, and zero forbidden strings. Zig emits
 an ad-hoc code-signature command for arm64 but not x86-64; neither constitutes
 Developer ID signing or notarization. Verbose nullability diagnostics originate
-in Zig's bundled libc++ build, not LimboAI source. Native macOS execution
-remains a hosted CI release gate.
+in Zig's bundled libc++ build, not LimboAI source. The local cross-build is
+supplemented by the hosted native validation below.
+
+### Hosted native macOS validation
+
+GitHub Actions run `31476931577` at source commit
+`147004846d91a0e6292dd9d2dc7536c02db14a00` completed successfully on
+`macos-14`. The native editor profile and forced template-release profile each
+pass all 13 cases with zero suspicious lines. Their fixture results are read
+from the single machine-readable stdout record because macOS does not honor
+the Linux/Windows isolated `user://` location; the strict fallback is covered
+by 10 Python unit tests.
+
+| Hosted profile | Bytes | SHA-256 | Native result |
+| --- | ---: | --- | --- |
+| Editor | 4,193,704 | `2E2FECEAE4137B8DB50B11533C57750A740A0AFF8FE16425DC3406F16D6E05BA` | Mach-O audit and 13 cases PASS; zero suspicious lines. |
+| Template release | 2,428,264 | `DEF8952D444111519F3C5C3768BF4AC769204900ECBF76D5D0F2887134C70BB0` | Mach-O audit and forced 13 cases PASS; zero suspicious lines. |
 
 ## Demo and deterministic archives
 
@@ -87,6 +102,14 @@ The core archive was extracted into a new addon root. Windows and Ubuntu 24.04
 editor/template-release runs each passed all 13 cases with zero suspicious
 lines, and the forced release runs selected the exact packaged hashes above.
 
+The successful fork workflow also packaged source commit `1470048` twice from
+its three hosted platform artifacts and byte-compared both outputs. Its
+78-entry core is 6,940,615 bytes with SHA-256
+`1872EF8284BD4DF670717963898769470B20F5AB057116CCCD6CA11390009B9F`;
+its 171-entry demo is 3,741,988 bytes with SHA-256
+`7CC10D10E725C2E7D3EB7E91A61ED9EF82B8F62684B8C68263A8116F5EAB3D1D`.
+These CI artifacts are validation outputs, not a GitHub release.
+
 ## Performance smoke samples
 
 Direct-build samples completed in 3,229 microseconds (Windows editor), 3,040
@@ -99,7 +122,7 @@ claim.
 ## Gates not proven by this report
 
 This report does not pass visible-editor UX/accessibility/debugger/lifecycle
-work, the full performance matrix, native macOS runtime, native Windows/macOS
-exported products, Developer ID signing/notarization, or a public binary
-release. Source publication to the designated Redot fork is separately
-authorized; tags and releases are not.
+work, the full performance matrix, native Windows/macOS exported products,
+Developer ID signing/notarization, or a public binary release. Source
+publication to the designated Redot fork is complete; tags and releases are
+not authorized.
