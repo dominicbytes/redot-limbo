@@ -50,7 +50,7 @@ private:
 
 	TreeSearchPanel *search_panel = nullptr;
 
-	// For TaskTree: These are updated when the tree is updated through TaskTree::_create_tree.
+	// TaskTree refreshes these after row reconstruction and task text changes.
 	Tree *tree_reference = nullptr;
 	// Linearized ordering of tree items.
 	Vector<TreeItem *> ordered_tree_items;
