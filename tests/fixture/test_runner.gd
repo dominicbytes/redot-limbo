@@ -528,4 +528,4 @@ func _write_result() -> void:
 		return
 	file.store_string(JSON.stringify(result, "\t") + "\n")
 	file.close()
-	print("LIMBOAI_FIXTURE_RESULT %s" % JSON.stringify({"passed": result.passed, "case_count": _cases.size(), "failures": _failures}))
+	print("LIMBOAI_FIXTURE_RESULT %s" % JSON.stringify(result))

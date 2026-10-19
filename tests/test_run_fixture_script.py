@@ -4,13 +4,25 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
+import sys
+import json
+from copy import deepcopy
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "run_fixture.py"
+sys.path.insert(0, str(SCRIPT_PATH.parent))
 SPEC = importlib.util.spec_from_file_location("run_fixture", SCRIPT_PATH)
 assert SPEC is not None and SPEC.loader is not None
 RUN_FIXTURE = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(RUN_FIXTURE)
+
+
+def successful_result():
+    from fixture_result import EXPECTED_CASE_NAMES
+    return {"schema_version": 1, "passed": True, "failures": [],
+            "engine": {"string": "test-engine"}, "fixed_delta": 0.016,
+            "cases": [{"name": name, "passed": True, "details": {}}
+                      for name in sorted(EXPECTED_CASE_NAMES)]}
 
 
 class ForceReleaseLibraryTests(unittest.TestCase):
@@ -59,15 +71,9 @@ class ForceReleaseLibraryTests(unittest.TestCase):
                 self.assertTrue(location.is_dir())
 
     def test_parses_exactly_one_machine_readable_stdout_result(self) -> None:
-        output = (
-            "Redot Engine LTS\n"
-            'LIMBOAI_FIXTURE_RESULT {"case_count":13,"failures":[],"passed":true}\n'
-        )
-
-        result = RUN_FIXTURE.parse_result_from_output(output)
-
-        self.assertEqual(result["case_count"], 13)
-        self.assertTrue(result["passed"])
+        document = successful_result()
+        result = RUN_FIXTURE.parse_result_from_output("Redot Engine LTS\nLIMBOAI_FIXTURE_RESULT " + json.dumps(document))
+        self.assertEqual(result, document)
 
     def test_stdout_result_rejects_missing_or_duplicate_payloads(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "found 0"):
@@ -83,6 +89,61 @@ class ForceReleaseLibraryTests(unittest.TestCase):
     def test_stdout_result_requires_a_json_object(self) -> None:
         with self.assertRaisesRegex(RuntimeError, "must be a JSON object"):
             RUN_FIXTURE.parse_result_from_output("LIMBOAI_FIXTURE_RESULT true\n")
+
+
+class ResultContractTests(unittest.TestCase):
+    def test_empty_failed_compact_and_malformed_results_are_rejected(self):
+        from fixture_result import validate_result
+        documents = [{}, [], {"passed": True, "case_count": 13, "failures": []}]
+        for key, value in (("passed", False), ("cases", []), ("engine", {}),
+                           ("fixed_delta", None), ("fixed_delta", True), ("fixed_delta", float("nan")),
+                           ("failures", ["failed"]), ("schema_version", 2)):
+            result = successful_result()
+            result[key] = value
+            documents.append(result)
+        for document in documents:
+            with self.subTest(document=document):
+                with self.assertRaises(ValueError):
+                    validate_result(document)
+                with self.assertRaises((ValueError, RuntimeError)):
+                    RUN_FIXTURE.parse_result_from_output(RUN_FIXTURE.RESULT_PREFIX + json.dumps(document))
+
+    def test_inventory_reports_missing_extra_and_duplicates(self):
+        from fixture_result import validate_result
+        result = successful_result()
+        removed = result["cases"].pop()["name"]
+        with self.assertRaisesRegex(ValueError, "missing=.*" + removed):
+            validate_result(result)
+        result = successful_result()
+        result["cases"].append({"name": "unexpected_case", "passed": True, "details": {}})
+        with self.assertRaisesRegex(ValueError, "extra=.*unexpected_case"):
+            validate_result(result)
+        result["cases"][-1] = deepcopy(result["cases"][0])
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            validate_result(result)
+
+    def test_failed_and_incomplete_cases_are_rejected(self):
+        from fixture_result import validate_result
+        for key in ("passed", "details", "name"):
+            result = successful_result()
+            del result["cases"][0][key]
+            with self.assertRaises(ValueError):
+                validate_result(result)
+
+    def test_comparator_rejects_failed_outer_run_and_invalid_json(self):
+        import compare_fixture_results as compare
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / "result.json"
+            for document in ({}, {"passed": False, "result": successful_result()},
+                             {"passed": True, "result": {"passed": True}}, []):
+                path.write_text(json.dumps(document))
+                with self.assertRaises(ValueError):
+                    compare.load_result(path)
+            path.write_text('{"passed":')
+            with self.assertRaises(ValueError):
+                compare.load_result(path)
+            path.write_text(json.dumps(successful_result()))
+            self.assertEqual(compare.load_result(path), successful_result())
 
 
 if __name__ == "__main__":

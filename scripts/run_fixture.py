@@ -14,6 +14,8 @@ import subprocess
 import sys
 import time
 
+from fixture_result import validate_result
+
 
 FAILURE_PATTERN = re.compile(
     r"(?:\bERROR:|\bWARNING:|\bFATAL:|crash|segmentation|cannot load|failed|leaked)",
@@ -97,7 +99,7 @@ def parse_result_from_output(output_text: str) -> dict[str, object]:
     result = json.loads(payloads[0])
     if not isinstance(result, dict):
         raise RuntimeError(f"{RESULT_PREFIX.strip()} payload must be a JSON object")
-    return result
+    return validate_result(result)
 
 
 def isolated_environment(state_root: Path) -> dict[str, str]:
@@ -215,6 +217,8 @@ def main() -> int:
     import_command = [
         str(engine),
         "--headless",
+        "--audio-driver",
+        "Dummy",
         "--editor",
         "--path",
         str(project_root),
@@ -225,6 +229,8 @@ def main() -> int:
     fixture_command = [
         str(engine),
         "--headless",
+        "--audio-driver",
+        "Dummy",
         "--path",
         str(project_root),
         "--script",
@@ -276,6 +282,12 @@ def main() -> int:
         result_source = "file"
         result_error = None
 
+    if result_error is None:
+        try:
+            validate_result(result)
+        except ValueError as error:
+            result_error = str(error)
+
     suspicious_lines = [
         line
         for line in (import_output + "\n" + output_text).splitlines()
@@ -286,6 +298,7 @@ def main() -> int:
         and import_return_code == 0
         and not timed_out
         and return_code == 0
+        and result_error is None
         and result is not None
         and result.get("passed") is True
         and not suspicious_lines
