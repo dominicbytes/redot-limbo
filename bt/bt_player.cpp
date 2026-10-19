@@ -96,6 +96,7 @@ void BTPlayer::set_bt_instance(const Ref<BTInstance> &p_bt_instance) {
 	ERR_FAIL_COND_MSG(p_bt_instance.is_null(), "BTPlayer: Failed to set behavior tree instance - instance is null.");
 	ERR_FAIL_COND_MSG(!p_bt_instance->is_instance_valid(), "BTPlayer: Failed to set behavior tree instance - instance is not valid.");
 
+	ERR_FAIL_NULL_MSG(p_bt_instance->get_agent(), "BTPlayer: Instance agent no longer exists.");
 	bt_instance = p_bt_instance;
 	blackboard = p_bt_instance->get_blackboard();
 	agent_node = p_bt_instance->get_agent()->get_path();

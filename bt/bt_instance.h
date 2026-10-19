@@ -49,7 +49,7 @@ public:
 	_FORCE_INLINE_ Node *get_agent() const { return root_task.is_valid() ? root_task->get_agent() : nullptr; }
 	_FORCE_INLINE_ Ref<Blackboard> get_blackboard() const { return root_task.is_valid() ? root_task->get_blackboard() : Ref<Blackboard>(); }
 
-	_FORCE_INLINE_ bool is_instance_valid() const { return root_task.is_valid(); }
+	_FORCE_INLINE_ bool is_instance_valid() const { return root_task.is_valid() && root_task->get_agent() != nullptr && root_task->get_scene_root() != nullptr; }
 
 	BT::Status update(double p_delta);
 

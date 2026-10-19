@@ -36,7 +36,7 @@ private:
 	double speed = 1.0;
 	bool from_end = false;
 
-	AnimationPlayer *animation_player = nullptr;
+	ObjectID animation_player_id;
 	bool setup_failed = false;
 
 protected:

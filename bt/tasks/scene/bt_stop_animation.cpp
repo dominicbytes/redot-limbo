@@ -68,16 +68,19 @@ String BTStopAnimation::_generate_name() {
 void BTStopAnimation::_setup() {
 	setup_failed = true;
 	ERR_FAIL_COND_MSG(animation_player_param.is_null(), "BTStopAnimation: AnimationPlayer parameter is not set.");
-	animation_player = Object::cast_to<AnimationPlayer>(animation_player_param->get_value(get_scene_root(), get_blackboard()));
+	AnimationPlayer *animation_player = Object::cast_to<AnimationPlayer>(animation_player_param->get_value(get_scene_root(), get_blackboard()));
 	ERR_FAIL_COND_MSG(animation_player == nullptr, "BTStopAnimation: Failed to get AnimationPlayer.");
 	if (animation_name != StringName()) {
 		ERR_FAIL_COND_MSG(!animation_player->has_animation(animation_name), vformat("BTStopAnimation: Animation not found: %s", animation_name));
 	}
+	animation_player_id = animation_player->get_instance_id();
 	setup_failed = false;
 }
 
 BT::Status BTStopAnimation::_tick(double p_delta) {
 	ERR_FAIL_COND_V_MSG(setup_failed == true, FAILURE, "BTStopAnimation: _setup() failed - returning FAILURE.");
+	AnimationPlayer *animation_player = Object::cast_to<AnimationPlayer>(ObjectDB::get_instance(animation_player_id));
+	ERR_FAIL_NULL_V_MSG(animation_player, FAILURE, "AnimationPlayer no longer exists.");
 	if (animation_player->is_playing() && (animation_name == StringName() || animation_name == animation_player->get_assigned_animation())) {
 		animation_player->stop(keep_state);
 	}

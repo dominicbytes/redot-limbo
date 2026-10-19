@@ -89,23 +89,28 @@ String BTPlayAnimation::_generate_name() {
 void BTPlayAnimation::_setup() {
 	setup_failed = true;
 	ERR_FAIL_COND_MSG(animation_player_param.is_null(), "BTPlayAnimation: AnimationPlayer parameter is not set.");
-	animation_player = Object::cast_to<AnimationPlayer>(animation_player_param->get_value(get_scene_root(), get_blackboard()));
+	AnimationPlayer *animation_player = Object::cast_to<AnimationPlayer>(animation_player_param->get_value(get_scene_root(), get_blackboard()));
 	ERR_FAIL_COND_MSG(animation_player == nullptr, "BTPlayAnimation: Failed to get AnimationPlayer.");
 	ERR_FAIL_COND_MSG(animation_name != StringName() && !animation_player->has_animation(animation_name), vformat("BTPlayAnimation: Animation not found: %s", animation_name));
 	if (animation_name == StringName() && await_completion > 0.0) {
 		WARN_PRINT("BTPlayAnimation: Animation Name is required in order to wait for the animation to finish.");
 	}
+	animation_player_id = animation_player->get_instance_id();
 	setup_failed = false;
 }
 
 void BTPlayAnimation::_enter() {
 	if (!setup_failed) {
+		AnimationPlayer *animation_player = Object::cast_to<AnimationPlayer>(ObjectDB::get_instance(animation_player_id));
+		ERR_FAIL_NULL_MSG(animation_player, "AnimationPlayer no longer exists.");
 		animation_player->play(animation_name, blend, speed, from_end);
 	}
 }
 
 BT::Status BTPlayAnimation::_tick(double p_delta) {
 	ERR_FAIL_COND_V_MSG(setup_failed == true, FAILURE, "BTPlayAnimation: _setup() failed - returning FAILURE.");
+	AnimationPlayer *animation_player = Object::cast_to<AnimationPlayer>(ObjectDB::get_instance(animation_player_id));
+	ERR_FAIL_NULL_V_MSG(animation_player, FAILURE, "AnimationPlayer no longer exists.");
 
 	// ! Doing this check instead of using signal due to a bug in Godot: https://github.com/godotengine/godot/issues/76127
 	if (animation_player->is_playing() && animation_player->get_assigned_animation() == animation_name) {

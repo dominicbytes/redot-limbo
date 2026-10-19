@@ -177,19 +177,39 @@ void BTTask::set_custom_name(const String &p_name) {
 	}
 };
 
+Node *BTTask::get_agent() const {
+	return Object::cast_to<Node>(ObjectDB::get_instance(data.agent_id));
+}
+
+void BTTask::set_agent(Node *p_agent) {
+	data.agent_id = p_agent ? p_agent->get_instance_id() : ObjectID();
+}
+
+Node *BTTask::get_scene_root() const {
+	return Object::cast_to<Node>(ObjectDB::get_instance(data.scene_root_id));
+}
+
+bool BTTask::_has_valid_context() const {
+	return !data.initialized || (get_agent() != nullptr && get_scene_root() != nullptr);
+}
+
 void BTTask::initialize(Node *p_agent, const Ref<Blackboard> &p_blackboard, Node *p_scene_root) {
 	ERR_FAIL_NULL(p_agent);
 	ERR_FAIL_COND(p_blackboard.is_null());
 	ERR_FAIL_NULL(p_scene_root);
-	data.agent = p_agent;
+	set_agent(p_agent);
 	data.blackboard = p_blackboard;
-	data.scene_root = p_scene_root;
+	data.scene_root_id = p_scene_root->get_instance_id();
+	data.initialized = true;
 	for (int i = 0; i < data.children.size(); i++) {
 		get_child(i)->initialize(p_agent, p_blackboard, p_scene_root);
+		ERR_FAIL_COND_MSG(!_has_valid_context(), "BTTask: Agent or scene root no longer exists.");
 	}
 
 	_setup();
+	ERR_FAIL_COND_MSG(!_has_valid_context(), "BTTask: Agent or scene root no longer exists.");
 	GDVIRTUAL_CALL(_setup);
+	ERR_FAIL_COND_MSG(!_has_valid_context(), "BTTask: Agent or scene root no longer exists.");
 }
 
 Ref<BTTask> BTTask::clone() const {
@@ -219,9 +239,20 @@ Ref<BTTask> BTTask::clone() const {
 BT::Status BTTask::execute(double p_delta) {
 	ERR_FAIL_COND_V_MSG(data.executing || data.aborting, FRESH, "Cannot execute a task recursively.");
 	const Ref<BTTask> keep_alive{ this };
+	if (!_has_valid_context()) {
+		abort();
+		data.status = FAILURE;
+		ERR_FAIL_V_MSG(FAILURE, "BTTask: Agent or scene root no longer exists.");
+	}
 	data.executing = true;
 	data.execution_generation = data.abort_generation;
 	auto finish = [this](Status p_status) {
+		if (!_has_valid_context()) {
+			abort();
+			data.status = FAILURE;
+			data.executing = false;
+			ERR_FAIL_V_MSG(FAILURE, "BTTask: Agent or scene root no longer exists.");
+		}
 		data.executing = false;
 		return p_status;
 	};
@@ -242,6 +273,9 @@ BT::Status BTTask::execute(double p_delta) {
 		if (_is_execution_cancelled()) {
 			return finish(FRESH);
 		}
+		if (!_has_valid_context()) {
+			return finish(FAILURE);
+		}
 		GDVIRTUAL_CALL(_enter);
 		if (_is_execution_cancelled()) {
 			return finish(FRESH);
@@ -250,12 +284,18 @@ BT::Status BTTask::execute(double p_delta) {
 		data.elapsed += p_delta;
 	}
 
+	if (!_has_valid_context()) {
+		return finish(FAILURE);
+	}
 	Status next_status = FRESH;
 	if (!GDVIRTUAL_CALL(_tick, p_delta, next_status)) {
 		next_status = _tick(p_delta);
 	}
 	if (_is_execution_cancelled()) {
 		return finish(FRESH);
+	}
+	if (!_has_valid_context()) {
+		return finish(FAILURE);
 	}
 	data.status = next_status;
 

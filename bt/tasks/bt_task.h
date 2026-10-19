@@ -65,8 +65,9 @@ private:
 	struct Data {
 		int index = -1;
 		String custom_name;
-		Node *agent = nullptr;
-		Node *scene_root = nullptr;
+		ObjectID agent_id;
+		ObjectID scene_root_id;
+		bool initialized = false;
 		Ref<Blackboard> blackboard;
 		BTTask *parent = nullptr;
 		Vector<Ref<BTTask>> children;
@@ -83,6 +84,8 @@ private:
 		ObjectID behavior_tree_id;
 #endif
 	} data;
+
+	bool _has_valid_context() const;
 
 	mutable bool _is_cloning = false;
 
@@ -127,10 +130,10 @@ public:
 	virtual void set_enabled(bool p_enabled);
 	bool is_enabled_in_tree() const;
 
-	_FORCE_INLINE_ Node *get_agent() const { return data.agent; }
-	void set_agent(Node *p_agent) { data.agent = p_agent; }
+	Node *get_agent() const;
+	void set_agent(Node *p_agent);
 
-	_FORCE_INLINE_ Node *get_scene_root() const { return data.scene_root; }
+	Node *get_scene_root() const;
 
 	void set_display_collapsed(bool p_display_collapsed);
 	bool is_displayed_collapsed() const;
