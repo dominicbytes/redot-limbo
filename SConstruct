@@ -131,6 +131,9 @@ def verify_binding_checkout(profile):
 
 def verify_effective_binding_inputs(env, profile):
     # The binding has now resolved command-line, custom.py, and profile options.
+    if profile == "redot" and not env["build_library"]:
+        print("Locked redot binding requires build_library=yes; prebuilt archives are not verified.")
+        Exit(1)
     binding_dir = os.path.abspath("godot-cpp")
     extension_dir = env.get("gdextension_dir", os.path.join(binding_dir, "gdextension"))
     api_path = env.get("custom_api_file", os.path.join(extension_dir, "extension_api.json"))

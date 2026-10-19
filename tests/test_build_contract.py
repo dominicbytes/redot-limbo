@@ -1,6 +1,7 @@
 import ast
 import hashlib
 import os
+import runpy
 from pathlib import Path
 import tempfile
 import unittest
@@ -29,11 +30,39 @@ class BuildContractTests(unittest.TestCase):
                     with self.subTest(override=override, changed=changed.name):
                         api.write_bytes(b"locked")
                         header.write_bytes(b"locked")
-                        env = {"gdextension_dir": str(root), "custom_api_file": str(api)}
+                        env = {"gdextension_dir": str(root), "custom_api_file": str(api), "build_library": True}
                         check(env, "redot")
                         changed.write_bytes(b"different")
                         with self.assertRaisesRegex(ValueError, "rejected"):
                             check(env, "redot")
+
+    def test_locked_profile_rejects_disabled_effective_binding_build(self):
+        tree = ast.parse((ROOT / "SConstruct").read_text())
+        function = next(node for node in tree.body if isinstance(node, ast.FunctionDef)
+                        and node.name == "verify_effective_binding_inputs")
+        def reject(code):
+            raise ValueError("rejected")
+        namespace = {"os": os, "Exit": reject, "read_dependency_lock": lambda key: "locked",
+                     "sha256_file": lambda path: "locked"}
+        exec(compile(ast.Module(body=[function], type_ignores=[]), "SConstruct", "exec"), namespace)
+        check = namespace[function.name]
+        with tempfile.TemporaryDirectory() as temporary:
+            config = Path(temporary) / "custom.py"
+            config.write_text("build_library = False\n")
+            # SCons resolves BoolVariable command-line values to the same bool
+            # as custom.py/profile values before returning the binding env.
+            for source, resolved in (("command-line", {"build_library": False}),
+                                     ("custom.py", runpy.run_path(str(config))),
+                                     ("profile", runpy.run_path(str(config)))):
+                with self.subTest(source=source):
+                    with self.assertRaisesRegex(ValueError, "rejected"):
+                        check(resolved, "redot")
+                    check(resolved, "godot-oracle")
+            check({"build_library": True}, "redot")
+        # Reject after the binding has resolved all its option sources.
+        source = (ROOT / "SConstruct").read_text()
+        self.assertLess(source.index('env = SConscript("godot-cpp/SConstruct")'),
+                        source.index('verify_effective_binding_inputs(env, binding_profile)'))
 
     def test_compiler_flags_follow_selected_compiler(self):
         tree = ast.parse((ROOT / "SConstruct").read_text())
