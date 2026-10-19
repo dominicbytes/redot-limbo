@@ -80,6 +80,11 @@ void BTTask::_set_children(Array p_children) {
 	const int num_children = p_children.size();
 	int num_null = 0;
 
+	abort();
+	for (const Ref<BTTask> &child : data.children) {
+		child->data.parent = nullptr;
+		child->data.index = -1;
+	}
 	data.children.clear();
 	data.children.resize(num_children);
 
@@ -317,8 +322,9 @@ void BTTask::abort() {
 	data.abort_generation += 1;
 	bool was_entered = data.entered;
 	data.entered = false;
-	for (int i = 0; i < data.children.size(); i++) {
-		get_child(i)->abort();
+	const Vector<Ref<BTTask>> children = data.children;
+	for (const Ref<BTTask> &child : children) {
+		child->abort();
 	}
 	if (was_entered) {
 		// First script, then native.

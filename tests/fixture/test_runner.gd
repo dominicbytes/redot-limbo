@@ -71,6 +71,7 @@ func _run() -> void:
 	preload("res://runtime/call_errors.gd").run(self)
 	preload("res://runtime/player_replacement.gd").run(self)
 	preload("res://runtime/foreach_shrink.gd").run(self)
+	preload("res://runtime/children_replacement.gd").run(self)
 	_write_result()
 	quit(0 if _failures.is_empty() else 1)
 
