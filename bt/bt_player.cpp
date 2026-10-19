@@ -65,7 +65,9 @@ void BTPlayer::_initialize_blackboard() {
 }
 
 void BTPlayer::_initialize_bt() {
-	bt_instance.unref();
+	if (bt_instance.is_valid()) {
+		return;
+	}
 	ERR_FAIL_COND_MSG(!behavior_tree.is_valid(), "BTPlayer: Initialization failed - needs a valid behavior tree.");
 	ERR_FAIL_COND_MSG(!behavior_tree->get_root_task().is_valid(), "BTPlayer: Initialization failed - behavior tree has no valid root task.");
 	Node *agent = get_node_or_null(agent_node);
@@ -97,9 +99,20 @@ void BTPlayer::set_bt_instance(const Ref<BTInstance> &p_bt_instance) {
 	ERR_FAIL_COND_MSG(!p_bt_instance->is_instance_valid(), "BTPlayer: Failed to set behavior tree instance - instance is not valid.");
 
 	ERR_FAIL_NULL_MSG(p_bt_instance->get_agent(), "BTPlayer: Instance agent no longer exists.");
-	bt_instance = p_bt_instance;
-	blackboard = p_bt_instance->get_blackboard();
-	agent_node = p_bt_instance->get_agent()->get_path();
+	Ref<BTInstance> next = p_bt_instance;
+	Ref<BTInstance> previous = bt_instance;
+	const uint64_t generation = ++instance_change_generation;
+	bt_instance.unref();
+	if (previous.is_valid() && previous != next) {
+		previous->get_root_task()->abort();
+	}
+	if (generation != instance_change_generation) {
+		return;
+	}
+	ERR_FAIL_COND_MSG(!next->is_instance_valid(), "BTPlayer: Instance context no longer exists.");
+	bt_instance = next;
+	blackboard = next->get_blackboard();
+	agent_node = next->get_agent()->get_path();
 
 #ifdef DEBUG_ENABLED
 	bt_instance->set_monitor_performance(monitor_performance);
@@ -120,7 +133,7 @@ void BTPlayer::set_scene_root_hint(Node *p_scene_root) {
 }
 
 void BTPlayer::set_behavior_tree(const Ref<BehaviorTree> &p_tree) {
-	if (behavior_tree == p_tree) {
+	if (behavior_tree == p_tree && (p_tree.is_valid() || bt_instance.is_null())) {
 		return;
 	}
 
@@ -134,10 +147,19 @@ void BTPlayer::set_behavior_tree(const Ref<BehaviorTree> &p_tree) {
 		behavior_tree = p_tree;
 		_update_blackboard_plan();
 	} else { // runtime
+		const uint64_t generation = ++instance_change_generation;
+		Ref<BTInstance> previous = bt_instance;
 		behavior_tree = p_tree;
 		bt_instance.unref();
+		if (previous.is_valid()) {
+			previous->get_root_task()->abort();
+		}
+		if (generation != instance_change_generation) {
+			return;
+		}
 
 		if (IS_NODE_READY(this)) {
+			_initialize_blackboard();
 			_try_initialize();
 		}
 	}
