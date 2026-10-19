@@ -208,7 +208,7 @@ private:
 	void _remove_task_from_favorite(const String &p_task);
 	void _save_and_restart();
 	void _extract_subtree(const String &p_path);
-	void _replace_task(const Ref<BTTask> &p_task, const Ref<BTTask> &p_by_task);
+	void _replace_task(const Ref<BehaviorTree> &p_bt, const Ref<BTTask> &p_task, const Ref<BTTask> &p_by_task);
 
 	void _tab_clicked(int p_tab);
 	void _tab_closed(int p_tab);

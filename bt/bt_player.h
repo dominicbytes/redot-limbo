@@ -47,6 +47,7 @@ private:
 	bool monitor_performance = false;
 
 	Ref<BTInstance> bt_instance;
+	uint64_t instance_change_generation = 0;
 
 	void _try_initialize();
 	void _initialize_blackboard();

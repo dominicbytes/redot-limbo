@@ -1,6 +1,6 @@
 # Upstream and dependency lock
 
-Lock date: 2026-08-11. All hashes are hexadecimal SHA-256 unless identified as
+Lock date: 2026-10-19. All hashes are hexadecimal SHA-256 unless identified as
 Git object IDs. This source lock does not establish a published binary release.
 
 ## Source selection
@@ -43,6 +43,42 @@ dump produced the same hash. The source-backed API is retained as comparison
 evidence; a recursive comparison found no class, method, enum, singleton,
 utility, native-structure, or builtin-class delta, only official/custom build
 labels.
+
+## Supported runtimes and downstream binding patch
+
+The build identity is `REDOT_BUILD_VERSION=26.2.stable.official.4f5b14aba`.
+The supported runtimes are that exact 26.2 release and
+`26.3.stable.official.85e520394`. Both run the same libraries built against
+the locked 26.2 API and interface above. No 26.3 API generation is used for builds.
+The supplied 26.3 API is a strict superset with unchanged existing builtin
+storage sizes and native structures; it appends Struct at type 39.
+
+Official 26.3 archives from the
+[Redot release assets](https://github.com/Redot-Engine/redot-engine/releases/tag/redot-26.3-stable)
+were downloaded and their SHA-256 verified against the release asset digests:
+
+| Runtime archive | SHA-256 |
+| --- | --- |
+| `Redot_v26.3-stable_windows_win64.zip` | `2C6C7B4E96A88CA44EB413D9A5D43B8468B60A346C2448854C1A0C6BC9BAAB76` |
+| `Redot_v26.3-stable_linux_x64.zip` | `7D5155B80F4262F0A394C5040E539BB330CB63DD147BEDD9172D83EC2EFDBD91` |
+| `Redot_v26.3-stable_macos_universal.zip` | `BF781AE53DFAA4BBC6AADD21EBF2C69DA3681ED85894D3AB2A816F0B03755A34` |
+
+The binding revision stays unchanged, with one mandatory downstream patch:
+`patches/redot-cpp-variant-forward-compat.patch`. It fixes PackedVector4Array
+cleanup and routes unknown runtime types through engine destruction.
+Run `python scripts/prepare_binding.py --apply` after installing the locked API.
+Preparation and SCons both verify the patch, locked preimage, and effective
+postimage, rejecting unrelated binding source changes. Source hashes normalize
+CRLF to LF; the patch itself is pinned byte-for-byte with LF checkout rules.
+
+| Patched input | SHA-256 |
+| --- | --- |
+| Patch file | `DD388F84367D1624A58E2B9AF65F6F18726B7B45B74283AF6AF87E1A52CF7A85` |
+| `src/variant/variant.cpp`, preimage | `DDE55AE4B59881CA42C4A2897F198CA562A552CC8E7483D49FF6BAB89D184E74` |
+| `src/variant/variant.cpp`, postimage | `A64AE038023F0E111C0041AC35C09959FA0F095C56707A71C1D10CB59A4392D2` |
+
+The temporary 26.3 editor-import shutdown exception is documented in
+`LIMITATIONS.md`. Runtime diagnostics remain strict on both releases.
 
 ## Reference engines and build tools
 

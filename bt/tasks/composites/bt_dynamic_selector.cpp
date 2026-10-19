@@ -20,6 +20,9 @@ BT::Status BTDynamicSelector::_tick(double p_delta) {
 	int i;
 	for (i = 0; i < get_child_count(); i++) {
 		status = get_child(i)->execute(p_delta);
+		if (_is_execution_cancelled()) {
+			return FRESH;
+		}
 		if (status != FAILURE) {
 			break;
 		}
@@ -28,6 +31,9 @@ BT::Status BTDynamicSelector::_tick(double p_delta) {
 	// cancel previous runner.
 	if (last_running_idx > i && get_child(last_running_idx)->get_status() == RUNNING) {
 		get_child(last_running_idx)->abort();
+		if (_is_execution_cancelled()) {
+			return FRESH;
+		}
 	}
 	last_running_idx = i;
 	return status;

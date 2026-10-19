@@ -80,6 +80,11 @@ void BTTask::_set_children(Array p_children) {
 	const int num_children = p_children.size();
 	int num_null = 0;
 
+	abort();
+	for (const Ref<BTTask> &child : data.children) {
+		child->data.parent = nullptr;
+		child->data.index = -1;
+	}
 	data.children.clear();
 	data.children.resize(num_children);
 
@@ -177,19 +182,50 @@ void BTTask::set_custom_name(const String &p_name) {
 	}
 };
 
+Node *BTTask::get_agent() const {
+	return Object::cast_to<Node>(ObjectDB::get_instance(data.agent_id));
+}
+
+void BTTask::set_agent(Node *p_agent) {
+	data.agent_id = p_agent ? p_agent->get_instance_id() : ObjectID();
+}
+
+Node *BTTask::get_scene_root() const {
+	return Object::cast_to<Node>(ObjectDB::get_instance(data.scene_root_id));
+}
+
+bool BTTask::_has_valid_context() const {
+	if (!data.initialized) {
+		return true;
+	}
+#ifdef LIMBOAI_GDEXTENSION
+	// Initialization accepts Nodes only. Existence checks need no instance binding or cast.
+	return internal::gdextension_interface_object_get_instance_from_id(data.agent_id) != nullptr &&
+			(data.scene_root_id == data.agent_id || internal::gdextension_interface_object_get_instance_from_id(data.scene_root_id) != nullptr);
+#else
+	return ObjectDB::get_instance(data.agent_id) != nullptr &&
+			(data.scene_root_id == data.agent_id || ObjectDB::get_instance(data.scene_root_id) != nullptr);
+#endif
+}
+
 void BTTask::initialize(Node *p_agent, const Ref<Blackboard> &p_blackboard, Node *p_scene_root) {
 	ERR_FAIL_NULL(p_agent);
 	ERR_FAIL_COND(p_blackboard.is_null());
 	ERR_FAIL_NULL(p_scene_root);
-	data.agent = p_agent;
+	set_agent(p_agent);
 	data.blackboard = p_blackboard;
-	data.scene_root = p_scene_root;
+	data.scene_root_id = p_scene_root->get_instance_id();
+	data.initialized = true;
+	data.context_failed = false;
 	for (int i = 0; i < data.children.size(); i++) {
 		get_child(i)->initialize(p_agent, p_blackboard, p_scene_root);
+		ERR_FAIL_COND_MSG(!_has_valid_context(), "BTTask: Agent or scene root no longer exists.");
 	}
 
 	_setup();
+	ERR_FAIL_COND_MSG(!_has_valid_context(), "BTTask: Agent or scene root no longer exists.");
 	GDVIRTUAL_CALL(_setup);
+	ERR_FAIL_COND_MSG(!_has_valid_context(), "BTTask: Agent or scene root no longer exists.");
 }
 
 Ref<BTTask> BTTask::clone() const {
@@ -216,45 +252,118 @@ Ref<BTTask> BTTask::clone() const {
 	return inst;
 }
 
+BT::Status BTTask::_fail_context() {
+	if (data.context_failed) {
+		data.status = FAILURE;
+		return FAILURE;
+	}
+	data.context_failed = true;
+	abort();
+	data.status = FAILURE;
+	// The outer executing task reports context loss for the whole execution.
+	for (BTTask *task = data.parent; task != nullptr; task = task->data.parent) {
+		if (task->data.executing) {
+			return FAILURE;
+		}
+	}
+	ERR_PRINT("BTTask: Agent or scene root no longer exists.");
+	return FAILURE;
+}
+
 BT::Status BTTask::execute(double p_delta) {
+	ERR_FAIL_COND_V_MSG(data.executing || data.aborting, FRESH, "Cannot execute a task recursively.");
+	const Ref<BTTask> keep_alive{ this };
+	if (data.context_failed || !_has_valid_context()) {
+		return _fail_context();
+	}
+	data.executing = true;
+	data.execution_generation = data.abort_generation;
+	auto finish = [this](Status p_status, bool p_check_context = true) {
+		if (_is_execution_cancelled()) {
+			data.executing = false;
+			return FRESH;
+		}
+		if (p_check_context && !_has_valid_context()) {
+			Status status = _fail_context();
+			data.executing = false;
+			return status;
+		}
+		data.executing = false;
+		return p_status;
+	};
+
 	if (data.status != RUNNING) {
 		// Reset children status.
 		if (data.status != FRESH) {
 			for (int i = 0; i < get_child_count(); i++) {
 				data.children.get(i)->abort();
+				if (_is_execution_cancelled()) {
+					return finish(FRESH);
+				}
 			}
 		}
+		data.entered = true;
 		// First native, then script.
 		_enter();
+		if (_is_execution_cancelled()) {
+			return finish(FRESH);
+		}
+		if (!_has_valid_context()) {
+			return finish(FAILURE);
+		}
 		GDVIRTUAL_CALL(_enter);
+		if (_is_execution_cancelled()) {
+			return finish(FRESH);
+		}
 	} else {
 		data.elapsed += p_delta;
 	}
 
-	if (!GDVIRTUAL_CALL(_tick, p_delta, data.status)) {
-		data.status = _tick(p_delta);
+	if (data.status != RUNNING && !_has_valid_context()) {
+		return finish(FAILURE);
 	}
+	Status next_status = FRESH;
+	if (!GDVIRTUAL_CALL(_tick, p_delta, next_status)) {
+		next_status = _tick(p_delta);
+	}
+	if (_is_execution_cancelled()) {
+		return finish(FRESH);
+	}
+	if (!_has_valid_context()) {
+		return finish(FAILURE);
+	}
+	data.status = next_status;
 
 	if (data.status != RUNNING) {
-		// First script, then native.
+		data.entered = false;
+		// First script, then native. Mark exited before callbacks can abort.
 		GDVIRTUAL_CALL(_exit);
 		_exit();
 		data.elapsed = 0.0;
 	}
-	return data.status;
+	return finish(data.status, data.status != RUNNING);
 }
 
 void BTTask::abort() {
-	for (int i = 0; i < data.children.size(); i++) {
-		get_child(i)->abort();
+	if (data.aborting) {
+		return;
 	}
-	if (data.status == RUNNING) {
+	data.aborting = true;
+	data.abort_generation += 1;
+	bool was_entered = data.entered;
+	data.entered = false;
+	const Vector<Ref<BTTask>> children = data.children;
+	for (const Ref<BTTask> &child : children) {
+		child->abort();
+	}
+	if (was_entered) {
 		// First script, then native.
 		GDVIRTUAL_CALL(_exit);
 		_exit();
 	}
 	data.status = FRESH;
 	data.elapsed = 0.0;
+	data.aborting = false;
 }
 
 int BTTask::get_enabled_child_count() const {
@@ -268,6 +377,7 @@ int BTTask::get_enabled_child_count() const {
 }
 
 void BTTask::add_child(Ref<BTTask> p_child) {
+	ERR_FAIL_COND_MSG(p_child.is_null(), "Cannot add a null child task.");
 	ERR_FAIL_COND_MSG(p_child->get_parent().is_valid(), "p_child already has a parent!");
 	p_child->data.parent = this;
 	p_child->data.index = data.children.size();
@@ -276,6 +386,7 @@ void BTTask::add_child(Ref<BTTask> p_child) {
 }
 
 void BTTask::add_child_at_index(Ref<BTTask> p_child, int p_idx) {
+	ERR_FAIL_COND_MSG(p_child.is_null(), "Cannot add a null child task.");
 	ERR_FAIL_COND_MSG(p_child->get_parent().is_valid(), "p_child already has a parent!");
 	if (p_idx < 0 || p_idx > data.children.size()) {
 		p_idx = data.children.size();

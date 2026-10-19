@@ -1,0 +1,39 @@
+{
+  "comment": "TEMPORARY: remove this file and tolerance when a fixed Redot 26.3 engine is pinned. Applies only to editor import, never runtime or 26.2.",
+  "engine_version": "26.3.stable.official.85e520394",
+  "diagnostics": [
+    {
+      "category": "Canvas",
+      "pattern": "^WARNING: ([0-9]+) RIDs of type \"Canvas\" were leaked\\.$"
+    },
+    {
+      "category": "CanvasItem",
+      "pattern": "^WARNING: ([0-9]+) RIDs of type \"CanvasItem\" were leaked\\.$"
+    },
+    {
+      "category": "Viewport",
+      "pattern": "^ERROR: ([0-9]+) RID allocations of type 'N16RendererViewport8ViewportE' were leaked at exit\\.$"
+    },
+    {
+      "category": "DummyTexture",
+      "pattern": "^ERROR: ([0-9]+) RID allocations of type 'PN13RendererDummy14TextureStorage12DummyTextureE' were leaked at exit\\.$"
+    },
+    {
+      "category": "ShapedTextDataAdvanced",
+      "pattern": "^ERROR: ([0-9]+) RID allocations of type 'PN18TextServerAdvanced22ShapedTextDataAdvancedE' were leaked at exit\\.$"
+    },
+    {
+      "category": "FontAdvanced",
+      "pattern": "^ERROR: ([0-9]+) RID allocations of type 'PN18TextServerAdvanced12FontAdvancedE' were leaked at exit\\.$"
+    },
+    {
+      "category": "ObjectDB",
+      "pattern": "^WARNING: ObjectDB instances leaked at exit \\(run with --verbose for details\\)\\.$"
+    }
+  ],
+  "crash_marker": "CrashHandlerException: Program crashed with signal 11",
+  "crash_exit_codes": [
+    3221225477,
+    -1073741819
+  ]
+}

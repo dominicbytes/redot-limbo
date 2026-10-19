@@ -1,0 +1,50 @@
+extends RefCounted
+
+struct Payload:
+	var reference: RefCounted
+
+
+static func _store(bb: Blackboard, param: BBVariant) -> WeakRef:
+	var object := RefCounted.new()
+	var payload := Payload.new(object)
+	bb.set_var(&"payload", payload)
+	param.type = TYPE_STRUCT
+	param.saved_value = bb.get_var(&"payload")
+	return weakref(object)
+
+
+static func _store_blackboard(bb: Blackboard) -> WeakRef:
+	var object := RefCounted.new()
+	bb.set_var(&"payload", Payload.new(object))
+	return weakref(object)
+
+
+static func run(fixture: SceneTree) -> void:
+	var bb := Blackboard.new()
+	var sole_observer: WeakRef = _store_blackboard(bb)
+	bb.set_var(&"payload", 42)
+	var blackboard_overwrite_releases: bool = sole_observer.get_ref() == null
+	var param := BBVariant.new()
+	param.type = TYPE_STRUCT
+	var default_is_struct: bool = typeof(param.saved_value) == TYPE_STRUCT
+	var enumeration: String = ""
+	for property: Dictionary in param.get_property_list():
+		if property.name == "type":
+			enumeration = property.hint_string
+	var catalog_matches: bool = enumeration.split(",").size() == TYPE_MAX and enumeration.ends_with("Struct")
+	var observer: WeakRef = _store(bb, param)
+	var roundtrip: bool = typeof(param.saved_value) == TYPE_STRUCT and param.saved_value.reference == observer.get_ref()
+	bb.set_var(&"payload", 42)
+	var param_retains: bool = observer.get_ref() != null
+	param.type = TYPE_INT
+	var overwritten_releases: bool = observer.get_ref() == null
+	param.type = TYPE_STRUCT
+	var saved: Error = ResourceSaver.save(param, "user://struct-param.tres")
+	var restored: BBVariant = ResourceLoader.load("user://struct-param.tres", "BBVariant", ResourceLoader.CACHE_MODE_IGNORE) as BBVariant
+	var resource_roundtrip: bool = saved == OK and restored != null and restored.type == TYPE_STRUCT and typeof(restored.saved_value) == TYPE_STRUCT
+	fixture._record_case("struct_263", blackboard_overwrite_releases and default_is_struct and catalog_matches and roundtrip and param_retains and overwritten_releases and resource_roundtrip, {
+		"blackboard_overwrite_releases": blackboard_overwrite_releases,
+		"default_is_struct": default_is_struct, "catalog_matches": catalog_matches,
+		"roundtrip": roundtrip, "param_retains": param_retains,
+		"overwritten_releases": overwritten_releases, "resource_roundtrip": resource_roundtrip,
+	})

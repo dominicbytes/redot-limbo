@@ -27,6 +27,22 @@ void VARIANT_DELETE_IF_OBJECT(const Variant &p_variant) {
 	}
 }
 
+int VARIANT_TYPE_COUNT() {
+#ifdef LIMBOAI_MODULE
+	return Variant::VARIANT_MAX;
+#else
+	// The engine returns an empty name at its sentinel; the compiled enum may be older.
+	static const int count = []() {
+		int type = 0;
+		while (!Variant::get_type_name(static_cast<Variant::Type>(type)).is_empty()) {
+			type++;
+		}
+		return type;
+	}();
+	return count;
+#endif
+}
+
 Variant VARIANT_DEFAULT(Variant::Type p_type) {
 	switch (p_type) {
 		case Variant::Type::NIL: {
@@ -143,7 +159,24 @@ Variant VARIANT_DEFAULT(Variant::Type p_type) {
 		case Variant::Type::PACKED_COLOR_ARRAY: {
 			return Variant(PackedColorArray());
 		} break;
+		case Variant::Type::PACKED_VECTOR4_ARRAY: {
+			return Variant(PackedVector4Array());
+		} break;
 		default: {
+			// New runtime types have no typed wrappers in the locked binding.
+			if (int(p_type) == Variant::PACKED_VECTOR4_ARRAY + 1 && int(p_type) < VARIANT_TYPE_COUNT()) {
+				Variant value;
+#ifdef LIMBOAI_MODULE
+				Callable::CallError error;
+				Variant::construct(p_type, value, nullptr, 0, error);
+				ERR_FAIL_COND_V(error.error != Callable::CallError::CALL_OK, Variant());
+#else
+				GDExtensionCallError error{};
+				internal::gdextension_interface_variant_construct(static_cast<GDExtensionVariantType>(p_type), value._native_ptr(), nullptr, 0, &error);
+				ERR_FAIL_COND_V(error.error != GDEXTENSION_CALL_OK, Variant());
+#endif
+				return value;
+			}
 			return Variant();
 		}
 	}

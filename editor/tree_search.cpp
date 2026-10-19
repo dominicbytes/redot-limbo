@@ -53,10 +53,6 @@ void TreeSearch::_filter_tree() {
 	if (!tree_reference->get_root()) {
 		return;
 	}
-	if (matching_entries.is_empty()) {
-		return;
-	}
-
 	_filter_tree(tree_reference->get_root(), false);
 }
 
@@ -341,6 +337,9 @@ TreeSearch::StringSearchIndices TreeSearch::_substring_bounds(const String &p_se
 }
 
 void TreeSearch::_select_item(TreeItem *p_item) {
+	if (!tree_reference || !tree_reference->get_root()) {
+		return;
+	}
 	if (!p_item) {
 		return;
 	}
@@ -362,7 +361,7 @@ void TreeSearch::_select_item(TreeItem *p_item) {
 }
 
 void TreeSearch::_select_first_match() {
-	if (matching_entries.size() == 0) {
+	if (!tree_reference || !tree_reference->get_root() || matching_entries.is_empty()) {
 		return;
 	}
 	for (int i = 0; i < ordered_tree_items.size(); i++) {
@@ -376,7 +375,7 @@ void TreeSearch::_select_first_match() {
 }
 
 void TreeSearch::_select_last_match() {
-	if (matching_entries.size() == 0) {
+	if (!tree_reference || !tree_reference->get_root() || matching_entries.is_empty()) {
 		return;
 	}
 	for (int i = ordered_tree_items.size() - 1; i >= 0; i--) {
@@ -390,7 +389,7 @@ void TreeSearch::_select_last_match() {
 }
 
 void TreeSearch::_select_previous_match() {
-	if (matching_entries.size() == 0) {
+	if (!tree_reference || !tree_reference->get_root() || matching_entries.is_empty()) {
 		return;
 	}
 
@@ -420,7 +419,7 @@ void TreeSearch::_select_previous_match() {
 }
 
 void TreeSearch::_select_next_match() {
-	if (matching_entries.size() == 0) {
+	if (!tree_reference || !tree_reference->get_root() || matching_entries.is_empty()) {
 		return;
 	}
 
@@ -480,6 +479,12 @@ void TreeSearch::update_search(Tree *p_tree) {
 	tree_reference = p_tree;
 
 	if (!tree_reference->get_root()) {
+		matching_entries.clear();
+		ordered_tree_items.clear();
+		number_matches.clear();
+		callable_cache.clear();
+		was_searched_recently = false;
+		was_filtered_recently = false;
 		return;
 	}
 

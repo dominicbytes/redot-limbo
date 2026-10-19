@@ -1155,9 +1155,10 @@ void LimboAIEditor::_task_type_selected(const String &p_class_or_path) {
 	Ref<BTTask> new_task = _create_task_by_class_or_path(p_class_or_path);
 	ERR_FAIL_COND_MSG(new_task.is_null(), "LimboAI: Unable to construct task.");
 
+	Ref<BehaviorTree> edited_bt = task_tree->get_bt();
 	EditorUndoRedoManager *undo_redo = _new_undo_redo_action(TTR("Change BT task type"));
-	undo_redo->add_do_method(this, LW_NAME(_replace_task), selected_task, new_task);
-	undo_redo->add_undo_method(this, LW_NAME(_replace_task), new_task, selected_task);
+	undo_redo->add_do_method(this, LW_NAME(_replace_task), edited_bt, selected_task, new_task);
+	undo_redo->add_undo_method(this, LW_NAME(_replace_task), edited_bt, new_task, selected_task);
 	_commit_action_with_update(undo_redo);
 }
 
@@ -1165,11 +1166,14 @@ void LimboAIEditor::_copy_version_info() {
 	DisplayServer::get_singleton()->clipboard_set(version_btn->get_text());
 }
 
-void LimboAIEditor::_replace_task(const Ref<BTTask> &p_task, const Ref<BTTask> &p_by_task) {
+void LimboAIEditor::_replace_task(const Ref<BehaviorTree> &p_bt, const Ref<BTTask> &p_task, const Ref<BTTask> &p_by_task) {
+	ERR_FAIL_COND(p_bt.is_null());
 	ERR_FAIL_COND(p_task.is_null());
 	ERR_FAIL_COND(p_by_task.is_null());
 	ERR_FAIL_COND(p_by_task->get_child_count() > 0);
 	ERR_FAIL_COND(p_by_task->get_parent().is_valid());
+	Ref<BTTask> parent = p_task->get_parent();
+	ERR_FAIL_COND(parent.is_null() && p_bt->get_root_task() != p_task);
 
 	while (p_task->get_child_count() > 0) {
 		Ref<BTTask> child = p_task->get_child(0);
@@ -1178,12 +1182,9 @@ void LimboAIEditor::_replace_task(const Ref<BTTask> &p_task, const Ref<BTTask> &
 	}
 	p_by_task->set_custom_name(p_task->get_custom_name());
 
-	Ref<BTTask> parent = p_task->get_parent();
 	if (parent.is_null()) {
-		// Assuming root task is replaced.
-		ERR_FAIL_COND(task_tree->get_bt().is_null());
-		ERR_FAIL_COND(task_tree->get_bt()->get_root_task() != p_task);
-		task_tree->get_bt()->set_root_task(p_by_task);
+		// Root task is replaced in the tree captured by the action.
+		p_bt->set_root_task(p_by_task);
 	} else {
 		// Non-root task is replaced.
 		int idx = p_task->get_index();
@@ -1603,7 +1604,7 @@ void LimboAIEditor::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("edit_bt", "behavior_tree", "force_refresh"), &LimboAIEditor::edit_bt, Variant(false));
 	ClassDB::bind_method(D_METHOD("_reload_modified"), &LimboAIEditor::_reload_modified);
 	ClassDB::bind_method(D_METHOD("_resave_modified"), &LimboAIEditor::_resave_modified);
-	ClassDB::bind_method(D_METHOD("_replace_task", "task", "by_task"), &LimboAIEditor::_replace_task);
+	ClassDB::bind_method(D_METHOD("_replace_task", "behavior_tree", "task", "by_task"), &LimboAIEditor::_replace_task);
 	ClassDB::bind_method(D_METHOD("_popup_file_dialog"), &LimboAIEditor::_popup_file_dialog);
 	ClassDB::bind_method(D_METHOD("get_edited_blackboard_plan"), &LimboAIEditor::get_edited_blackboard_plan);
 }

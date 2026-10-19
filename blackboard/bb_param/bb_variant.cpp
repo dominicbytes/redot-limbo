@@ -11,6 +11,8 @@
 
 #include "bb_variant.h"
 
+#include "../../compat/variant.h"
+
 #ifdef LIMBOAI_MODULE
 #include "core/object/class_db.h"
 #endif // LIMBOAI_MODULE
@@ -22,7 +24,9 @@
 void BBVariant::set_type(Variant::Type p_type) {
 	if (type != p_type) {
 		type = p_type;
-		if (get_saved_value().get_type() != p_type) {
+		if (int(p_type) < 0 || int(p_type) >= VARIANT_TYPE_COUNT()) {
+			ERR_PRINT(vformat("BBVariant: Variant type %d is not supported by this runtime; declaration preserved.", int(p_type)));
+		} else if (get_saved_value().get_type() != p_type) {
 			_assign_default_value();
 		}
 		emit_changed();
@@ -38,7 +42,7 @@ void BBVariant::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_type", "type"), &BBVariant::set_type);
 
 	String vtypes;
-	for (int i = 0; i < Variant::VARIANT_MAX; i++) {
+	for (int i = 0; i < VARIANT_TYPE_COUNT(); i++) {
 		if (i > 0) {
 			vtypes += ",";
 		}

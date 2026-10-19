@@ -511,7 +511,7 @@ void BlackboardPlan::sync_with_base_plan() {
 }
 
 Ref<Blackboard> BlackboardPlan::create_blackboard(Node *p_prefetch_root, const Ref<Blackboard> &p_parent_scope, Node *p_prefetch_root_for_base_plan) {
-	ERR_FAIL_COND_V(p_prefetch_root == nullptr && prefetch_nodepath_vars, memnew(Blackboard));
+	ERR_FAIL_COND_V(p_prefetch_root == nullptr && is_prefetching_nodepath_vars(), memnew(Blackboard));
 	Ref<Blackboard> bb = memnew(Blackboard);
 	bb->set_parent(p_parent_scope);
 	populate_blackboard(bb, true, p_prefetch_root, p_prefetch_root_for_base_plan);
@@ -519,7 +519,7 @@ Ref<Blackboard> BlackboardPlan::create_blackboard(Node *p_prefetch_root, const R
 }
 
 void BlackboardPlan::populate_blackboard(const Ref<Blackboard> &p_blackboard, bool overwrite, Node *p_prefetch_root, Node *p_prefetch_root_for_base_plan) {
-	ERR_FAIL_COND(p_prefetch_root == nullptr && prefetch_nodepath_vars);
+	ERR_FAIL_COND(p_prefetch_root == nullptr && is_prefetching_nodepath_vars());
 	ERR_FAIL_COND(p_blackboard.is_null());
 	for (const Pair<StringName, BBVariable> &p : var_list) {
 		if (p_blackboard->has_local_var(p.first) && !overwrite) {
@@ -535,7 +535,7 @@ void BlackboardPlan::populate_blackboard(const Ref<Blackboard> &p_blackboard, bo
 		}
 		bool is_bound = has_property_binding(p.first) || (is_derived() && get_base_plan()->has_property_binding(p.first));
 		bool has_mapping = parent_scope_mapping.has(p.first);
-		bool do_prefetch = !is_bound && !has_mapping && prefetch_nodepath_vars;
+		bool do_prefetch = !is_bound && !has_mapping && is_prefetching_nodepath_vars();
 
 		// Add a variable duplicate to the blackboard, optionally with NodePath prefetch.
 		BBVariable var = p.second.duplicate(true);
@@ -566,12 +566,12 @@ void BlackboardPlan::populate_blackboard(const Ref<Blackboard> &p_blackboard, bo
 				binding_root = p_prefetch_root;
 			} else {
 				binding_path = get_base_plan()->property_bindings[p.first];
-				binding_root = p_prefetch_root_for_base_plan;
+				binding_root = p_prefetch_root_for_base_plan ? p_prefetch_root_for_base_plan : p_prefetch_root;
 			}
 			ERR_CONTINUE_MSG(binding_path.get_subname_count() != 1, vformat("BlackboardPlan: Can't bind variable %s using property path that contains multiple sub-names: %s", LimboUtility::get_singleton()->decorate_var(p.first), binding_path));
 			NodePath node_path{ binding_path.get_concatenated_names() };
 			StringName prop_name = binding_path.get_subname(0);
-			// TODO: Implement binding for base plan as well.
+			ERR_CONTINUE_MSG(binding_root == nullptr, "BlackboardPlan: Binding root is not set.");
 			Node *n = binding_root->get_node_or_null(node_path);
 			ERR_CONTINUE_MSG(n == nullptr, vformat("BlackboardPlan: Binding failed for variable %s using property path: %s", LimboUtility::get_singleton()->decorate_var(p.first), binding_path));
 			var.bind(n, prop_name);

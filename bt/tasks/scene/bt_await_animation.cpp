@@ -74,15 +74,18 @@ String BTAwaitAnimation::_generate_name() {
 void BTAwaitAnimation::_setup() {
 	setup_failed = true;
 	ERR_FAIL_COND_MSG(animation_player_param.is_null(), "BTAwaitAnimation: AnimationPlayer parameter is not set.");
-	animation_player = Object::cast_to<AnimationPlayer>(animation_player_param->get_value(get_scene_root(), get_blackboard()));
+	AnimationPlayer *animation_player = Object::cast_to<AnimationPlayer>(animation_player_param->get_value(get_scene_root(), get_blackboard()));
 	ERR_FAIL_COND_MSG(animation_player == nullptr, "BTAwaitAnimation: Failed to get AnimationPlayer.");
 	ERR_FAIL_COND_MSG(animation_name == StringName(), "BTAwaitAnimation: Animation Name is not set.");
 	ERR_FAIL_COND_MSG(!animation_player->has_animation(animation_name), vformat("BTAwaitAnimation: Animation not found: %s", animation_name));
+	animation_player_id = animation_player->get_instance_id();
 	setup_failed = false;
 }
 
 BT::Status BTAwaitAnimation::_tick(double p_delta) {
 	ERR_FAIL_COND_V_MSG(setup_failed == true, FAILURE, "BTAwaitAnimation: _setup() failed - returning FAILURE.");
+	AnimationPlayer *animation_player = Object::cast_to<AnimationPlayer>(ObjectDB::get_instance(animation_player_id));
+	ERR_FAIL_NULL_V_MSG(animation_player, FAILURE, "AnimationPlayer no longer exists.");
 
 	// ! Doing this check instead of using signal due to a bug in Godot: https://github.com/godotengine/godot/issues/76127
 	if (animation_player->is_playing() && animation_player->get_assigned_animation() == animation_name) {

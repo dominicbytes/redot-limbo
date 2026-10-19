@@ -51,11 +51,6 @@ TreeItem *TaskTree::_create_tree(const Ref<BTTask> &p_task, TreeItem *p_parent, 
 	}
 	_update_item(item);
 
-	// update TreeSearch if root task was created
-	if (tree->get_root() == item) {
-		tree_search->update_search(tree);
-	}
-
 	return item;
 }
 
@@ -125,6 +120,7 @@ void TaskTree::_update_tree() {
 	Vector<Ref<BTTask>> selection = get_selected_tasks();
 
 	tree->clear();
+	tree_search->update_search(tree);
 	RenderingServer::get_singleton()->canvas_item_clear(overlay_ci);
 	if (bt.is_null()) {
 		return;
@@ -135,6 +131,7 @@ void TaskTree::_update_tree() {
 		_create_tree(bt->get_root_task(), nullptr);
 		updating_tree = false;
 	}
+	tree_search->update_search(tree);
 
 	for (const Ref<BTTask> &task : selection) {
 		add_selection(task);
@@ -180,6 +177,9 @@ void TaskTree::_on_item_selected() {
 		}
 	}
 	last_selected = get_selected();
+	if (last_selected.is_null()) {
+		return;
+	}
 	last_selected->connect(LW_NAME(changed), on_task_changed);
 	emit_signal(LW_NAME(task_selected), last_selected);
 }
@@ -205,6 +205,7 @@ void TaskTree::_on_item_collapsed(Object *p_obj) {
 
 void TaskTree::_on_task_changed() {
 	_update_item(tree->get_selected());
+	tree_search->update_search(tree);
 }
 
 void TaskTree::_on_branch_changed(const Ref<BTTask> &p_branch) {
@@ -218,6 +219,7 @@ void TaskTree::_on_branch_changed(const Ref<BTTask> &p_branch) {
 	int index = item->get_index();
 	memdelete(item);
 	_create_tree(task, parent, index);
+	tree_search->update_search(tree);
 	clear_selection();
 	for (const Ref<BTTask> &sel : selection) {
 		add_selection(sel);
@@ -248,6 +250,7 @@ void TaskTree::load_bt(const Ref<BehaviorTree> &p_behavior_tree) {
 		_create_tree(bt->get_root_task(), nullptr);
 		updating_tree = false;
 	}
+	tree_search->update_search(tree);
 }
 
 void TaskTree::unload() {
@@ -263,6 +266,7 @@ void TaskTree::unload() {
 
 	bt.unref();
 	tree->clear();
+	tree_search->update_search(tree);
 	RenderingServer::get_singleton()->canvas_item_clear(overlay_ci);
 }
 
@@ -271,6 +275,7 @@ void TaskTree::update_task(const Ref<BTTask> &p_task) {
 	TreeItem *item = _find_item(p_task);
 	if (item) {
 		_update_item(item);
+		tree_search->update_search(tree);
 	}
 }
 

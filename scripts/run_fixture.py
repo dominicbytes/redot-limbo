@@ -14,11 +14,11 @@ import subprocess
 import sys
 import time
 
+from fixture_result import validate_result
+from content_policy import sanitize, sanitize_text
+from editor_import import assess_import, FAILURE_PATTERN
 
-FAILURE_PATTERN = re.compile(
-    r"(?:\bERROR:|\bWARNING:|\bFATAL:|crash|segmentation|cannot load|failed|leaked)",
-    re.IGNORECASE,
-)
+
 EDITOR_SETTLE_FRAMES = 120
 RESULT_PREFIX = "LIMBOAI_FIXTURE_RESULT "
 
@@ -97,7 +97,7 @@ def parse_result_from_output(output_text: str) -> dict[str, object]:
     result = json.loads(payloads[0])
     if not isinstance(result, dict):
         raise RuntimeError(f"{RESULT_PREFIX.strip()} payload must be a JSON object")
-    return result
+    return validate_result(result)
 
 
 def isolated_environment(state_root: Path) -> dict[str, str]:
@@ -140,6 +140,31 @@ def run_command(
         return 124, output_text, True, time.monotonic() - started
 
 
+def unexpected_diagnostics(import_output: str, runtime_output: str, result) -> list[str]:
+    # These cases count errors through Logger with printing enabled. Accept only
+    # their exact diagnostic and count; all other runtime/import diagnostics fail.
+    context_error = "ERROR: BTTask: Agent or scene root no longer exists."
+    cases = result.get("cases", []) if isinstance(result, dict) and isinstance(result.get("cases"), list) else []
+    expected = sum(
+        2 for case in cases
+        if isinstance(case, dict)
+        and case.get("name") in {"player_context_loss", "state_context_loss"}
+        and case.get("passed") is True
+        and isinstance(case.get("details"), dict)
+        and case["details"].get("error_counts") == [1, 1]
+    )
+    actual = runtime_output.splitlines().count(context_error)
+    lines = [line for line in import_output.splitlines() if FAILURE_PATTERN.search(line)]
+    lines.extend(
+        line for line in runtime_output.splitlines()
+        if FAILURE_PATTERN.search(line)
+        and not (expected == actual and expected > 0 and line == context_error)
+    )
+    if expected and actual != expected:
+        lines.append(f"Expected {expected} context-loss diagnostics, received {actual}.")
+    return lines
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--engine", type=Path, required=True)
@@ -163,6 +188,8 @@ def main() -> int:
         action="store_true",
         help="Load the macOS template_release framework in the runtime fixture.",
     )
+    parser.add_argument("--editor-regression", action="store_true",
+                        help="Run the editor regression plugin during editor import.")
     args = parser.parse_args()
 
     source_root = Path(__file__).resolve().parents[1]
@@ -173,7 +200,7 @@ def main() -> int:
     try:
         output.relative_to(allowed_output_root)
     except ValueError:
-        parser.error(f"--output must be inside {allowed_output_root}")
+        parser.error("--output must be inside <build>/redot-limboai")
     if output == allowed_output_root:
         parser.error("--output must name a run directory, not the shared build root")
     project_root = output / "project"
@@ -212,9 +239,25 @@ def main() -> int:
             "res://addons/limboai/bin/limboai.gdextension\n", encoding="utf-8"
         )
 
+    if args.editor_regression:
+        if forced_release_platform is not None:
+            parser.error("--editor-regression requires the editor library")
+        plugin = project_root / "addons/fixture_editor/plugin.cfg"
+        plugin.parent.mkdir(parents=True)
+        shutil.copyfile(project_root / "editor_regression.gd", plugin.parent / "editor_regression.gd")
+        plugin.write_text('[plugin]\nname="Fixture Editor"\ndescription="Editor regression"\n'
+                          'author="dominicbytes"\nversion="1"\nscript="editor_regression.gd"\n')
+        with (project_root / "project.godot").open("a", encoding="utf-8") as config:
+            config.write('\n[editor_plugins]\nenabled=PackedStringArray("res://addons/fixture_editor/plugin.cfg")\n')
+        extension_cache = project_root / ".godot/extension_list.cfg"
+        extension_cache.parent.mkdir(parents=True, exist_ok=True)
+        extension_cache.write_text("res://addons/limboai/bin/limboai.gdextension\n")
+
     import_command = [
         str(engine),
         "--headless",
+        "--audio-driver",
+        "Dummy",
         "--editor",
         "--path",
         str(project_root),
@@ -225,6 +268,8 @@ def main() -> int:
     fixture_command = [
         str(engine),
         "--headless",
+        "--audio-driver",
+        "Dummy",
         "--path",
         str(project_root),
         "--script",
@@ -244,8 +289,14 @@ def main() -> int:
         import_return_code, import_output, import_timed_out, import_duration = run_command(
             import_command, project_root, environment, args.timeout
         )
+    import_gate = assess_import(import_return_code, import_output, import_timed_out,
+                                project_root, args.editor_regression)
+    replacements = [(str(engine), "$REDOT_BIN"), (str(project_root), "<fixture project>"),
+                    (str(state_root), "<fixture state>"), (str(addon_project), "<addon project>"),
+                    (str(source_root), "<repo clone>")]
+    import_output = sanitize_text(import_output, replacements)
     import_log_path.write_text(import_output, encoding="utf-8")
-    if import_return_code == 0 and not import_timed_out:
+    if import_gate["passed"]:
         return_code, output_text, timed_out, duration = run_command(
             fixture_command, project_root, environment, args.timeout
         )
@@ -256,6 +307,7 @@ def main() -> int:
             import_timed_out,
             0.0,
         )
+    output_text = sanitize_text(output_text, replacements)
     log_path.write_text(output_text, encoding="utf-8")
 
     result_path = None
@@ -276,16 +328,23 @@ def main() -> int:
         result_source = "file"
         result_error = None
 
-    suspicious_lines = [
-        line
-        for line in (import_output + "\n" + output_text).splitlines()
-        if FAILURE_PATTERN.search(line)
-    ]
+    if result_error is None:
+        try:
+            validate_result(result)
+        except ValueError as error:
+            result_error = str(error)
+
+    if result_source == "file" and result_path is not None:
+        result_path.write_text(sanitize_text(result_path.read_text(encoding="utf-8"), replacements), encoding="utf-8")
+    result = sanitize(result, replacements)
+
+    suspicious_lines = import_gate["unexpected_diagnostics"] + unexpected_diagnostics("", output_text, result)
     passed = (
         not import_timed_out
-        and import_return_code == 0
+        and import_gate["passed"]
         and not timed_out
         and return_code == 0
+        and result_error is None
         and result is not None
         and result.get("passed") is True
         and not suspicious_lines
@@ -298,37 +357,43 @@ def main() -> int:
         "import_skipped": forced_release_platform is not None,
         "fixture_command": fixture_command,
         "import_return_code": import_return_code,
+        "import_gate": import_gate,
         "import_timed_out": import_timed_out,
         "import_duration_seconds": round(import_duration, 6),
         "return_code": return_code,
         "timed_out": timed_out,
         "duration_seconds": round(duration, 6),
-        "engine": {"path": str(engine), "sha256": sha256(engine)},
-        "addon_project": str(addon_project),
+        "engine": {"path": "$REDOT_BIN", "sha256": sha256(engine)},
+        "addon_project": "<addon project>",
         "addon_manifest_sha256": sha256(
             addon_project / "addons" / "limboai" / "bin" / "limboai.gdextension"
         ),
-        "selected_library": str(selected_library) if selected_library else None,
+        "selected_library": selected_library.relative_to(project_root).as_posix() if selected_library else None,
         "selected_library_sha256": sha256(selected_library) if selected_library else None,
         "forced_release_platform": forced_release_platform,
-        "result_path": str(result_path) if result_path else None,
+        "result_path": "<fixture state>/" + result_path.relative_to(state_root).as_posix() if result_path else None,
         "result_source": result_source,
         "result_error": result_error,
         "result": result,
         "suspicious_log_lines": suspicious_lines,
     }
+    summary = sanitize(summary, replacements)
     summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({
+    print(json.dumps(sanitize({
         "passed": passed,
         "label": args.label,
-        "summary": str(summary_path),
-        "import_log": str(import_log_path),
-        "log": str(log_path),
+        "summary": "run-summary.json",
+        "import_log": "editor-import.log",
+        "log": "fixture.log",
         "return_code": return_code,
         "suspicious_log_lines": len(suspicious_lines),
-    }))
+    }, replacements)))
     return 0 if passed else 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except (OSError, ValueError, RuntimeError) as error:
+        print("FAIL: " + sanitize_text(str(error)), file=sys.stderr)
+        sys.exit(2)

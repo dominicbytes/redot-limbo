@@ -14,6 +14,9 @@
 void BTParallel::_enter() {
 	for (int i = 0; i < get_child_count(); i++) {
 		get_child(i)->abort();
+		if (_is_execution_cancelled()) {
+			return;
+		}
 	}
 }
 
@@ -28,6 +31,9 @@ BT::Status BTParallel::_tick(double p_delta) {
 			status = child->get_status();
 		} else {
 			status = child->execute(p_delta);
+			if (_is_execution_cancelled()) {
+				return FRESH;
+			}
 		}
 		if (status == FAILURE) {
 			num_failed += 1;

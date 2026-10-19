@@ -1,4 +1,4 @@
-name: 🔎 Test builds
+name: Upstream Godot reference (unsupported on Redot) - test_builds
 on:
   workflow_dispatch:
 
@@ -26,10 +26,12 @@ concurrency:
 
 jobs:
   resolve-godot-ref:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 🔖 Godot ref
     uses: ./.github/workflows/resolve-godot-ref.yml
 
   unit-tests:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 🧪 Unit tests
     runs-on: "ubuntu-22.04"
     needs: resolve-godot-ref
@@ -104,6 +106,7 @@ jobs:
           bin/${{ env.BIN }} --test --headless
 
   static-checks:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: ⚙️ Static checks
     runs-on: ubuntu-22.04
     steps:
@@ -116,6 +119,7 @@ jobs:
           extra_args: --all-files
 
   linux-test-build:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 🐧 Linux
     needs: resolve-godot-ref
     uses: ./.github/workflows/linux.yml
@@ -124,6 +128,7 @@ jobs:
       test-build: true
 
   windows-test-build:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 🪟 Windows
     needs: resolve-godot-ref
     uses: ./.github/workflows/windows.yml
@@ -132,6 +137,7 @@ jobs:
       test-build: true
 
   macos-test-build:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 🍎 macOS
     needs: resolve-godot-ref
     uses: ./.github/workflows/macos.yml
@@ -140,6 +146,7 @@ jobs:
       test-build: true
 
   gdextension:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 🔌 GDExtension
     uses: ./.github/workflows/gdextension.yml
     with:

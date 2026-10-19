@@ -73,7 +73,11 @@ class TestGuard : public RefCounted {
 
 public:
 	bool permitted_to_enter = false;
-	bool can_enter() { return permitted_to_enter; }
+	int calls = 0;
+	bool can_enter() {
+		calls++;
+		return permitted_to_enter;
+	}
 };
 
 TEST_CASE("[Modules][LimboAI] HSM") {
@@ -230,7 +234,7 @@ TEST_CASE("[Modules][LimboAI] HSM") {
 	SUBCASE("Test dispatch() inside _enter()") {
 		state_beta->connect("entered",
 				callable_mp_static(_on_enter_dispatch).bind(state_beta, "event_two"));
-		hsm->dispatch("event_one");
+		hsm->dispatch("event_one", 25);
 		REQUIRE(hsm->get_active_state() == state_alpha);
 		CHECK(alpha_entries->num_callbacks == 2);
 		CHECK(alpha_updates->num_callbacks == 0);
@@ -238,6 +242,19 @@ TEST_CASE("[Modules][LimboAI] HSM") {
 		CHECK(beta_entries->num_callbacks == 1);
 		CHECK(beta_updates->num_callbacks == 0);
 		CHECK(beta_exits->num_callbacks == 1);
+		CHECK(state_beta->get_cargo() == Variant());
+		CHECK(state_alpha->get_cargo() == Variant());
+		CHECK_FALSE(state_beta->is_processing());
+	}
+	SUBCASE("Test dispatch() during exit is rejected") {
+		state_alpha->connect("exited",
+				callable_mp_static(_on_enter_dispatch).bind(state_alpha, "goto_nested"), Object::CONNECT_ONE_SHOT);
+		CHECK(hsm->dispatch("event_one"));
+		CHECK(hsm->get_active_state() == state_beta);
+		CHECK(alpha_exits->num_callbacks == 1);
+		CHECK(beta_entries->num_callbacks == 1);
+		CHECK(nested_entries->num_callbacks == 0);
+		CHECK_FALSE(nested_hsm->is_active());
 	}
 	SUBCASE("Test get_cargo() inside and outside _enter()") {
 		const int DATA = 25;
@@ -317,6 +334,7 @@ TEST_CASE("[Modules][LimboAI] HSM") {
 		SUBCASE("When entry is permitted") {
 			guard->permitted_to_enter = true;
 			hsm->dispatch("guarded_transition");
+			CHECK(guard->calls == 1);
 			CHECK(hsm->get_active_state() == state_beta);
 			CHECK(alpha_exits->num_callbacks == 1);
 			CHECK(beta_entries->num_callbacks == 1);
@@ -324,6 +342,7 @@ TEST_CASE("[Modules][LimboAI] HSM") {
 		SUBCASE("When entry is not permitted") {
 			guard->permitted_to_enter = false;
 			hsm->dispatch("guarded_transition");
+			CHECK(guard->calls == 1);
 			CHECK(hsm->get_active_state() == state_alpha);
 			CHECK(alpha_exits->num_callbacks == 0);
 			CHECK(beta_entries->num_callbacks == 0);
@@ -399,6 +418,18 @@ TEST_CASE("[Modules][LimboAI] HSM") {
 		hsm->restart();
 		CHECK(alpha_exits->num_callbacks == 1); // * exited
 		CHECK(alpha_entries->num_callbacks == 2); // * re-entered
+	}
+	SUBCASE("Test child restart rejects exit-time dispatch") {
+		state_alpha->call_on_exit(callable_mp_static(_on_enter_dispatch).bind(state_alpha, StringName("event_one")));
+		state_alpha->restart();
+		CHECK(hsm->get_active_state() == state_alpha);
+		CHECK(state_alpha->is_active());
+		CHECK_FALSE(state_beta->is_active());
+		CHECK(alpha_entries->num_callbacks == 2);
+		CHECK(alpha_exits->num_callbacks == 1);
+		CHECK(beta_entries->num_callbacks == 0);
+		hsm->set_active(false);
+		CHECK(alpha_entries->num_callbacks == alpha_exits->num_callbacks);
 	}
 	SUBCASE("Test EVENT_FINISHED should be unique") {
 		CHECK(state_alpha->event_finished() != state_beta->event_finished());

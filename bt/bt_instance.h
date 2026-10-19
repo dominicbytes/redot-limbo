@@ -21,6 +21,7 @@ private:
 	uint64_t owner_node_id = 0;
 	String source_bt_path;
 	BT::Status last_status = BT::FRESH;
+	bool context_failed = false;
 
 #ifdef DEBUG_ENABLED
 	bool monitor_performance = false;
@@ -49,7 +50,9 @@ public:
 	_FORCE_INLINE_ Node *get_agent() const { return root_task.is_valid() ? root_task->get_agent() : nullptr; }
 	_FORCE_INLINE_ Ref<Blackboard> get_blackboard() const { return root_task.is_valid() ? root_task->get_blackboard() : Ref<Blackboard>(); }
 
-	_FORCE_INLINE_ bool is_instance_valid() const { return root_task.is_valid(); }
+	_FORCE_INLINE_ bool is_instance_valid() const { return root_task.is_valid() && root_task->get_agent() != nullptr && root_task->get_scene_root() != nullptr; }
+
+	_FORCE_INLINE_ bool has_context_failed() const { return context_failed; }
 
 	BT::Status update(double p_delta);
 

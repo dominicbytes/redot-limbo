@@ -33,7 +33,7 @@ private:
 	StringName animation_name;
 	double max_time = 1.0;
 
-	AnimationPlayer *animation_player = nullptr;
+	ObjectID animation_player_id;
 	bool setup_failed = false;
 
 protected:

@@ -33,7 +33,7 @@ private:
 	StringName animation_name;
 	bool keep_state = false;
 
-	AnimationPlayer *animation_player = nullptr;
+	ObjectID animation_player_id;
 	bool setup_failed = false;
 
 protected:
