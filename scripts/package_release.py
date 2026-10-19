@@ -9,11 +9,13 @@ import json
 from pathlib import Path
 import re
 import subprocess
+import struct
 import sys
 from typing import Callable
 import zipfile
 
 from content_policy import display_path, scan_blob, sanitize_text
+from audit_macos_binary import audit_library_data
 
 
 VERSION = "1.8.0+redot.26.2.1"
@@ -50,6 +52,40 @@ def file_bytes(path: Path) -> bytes:
     if not path.is_file():
         raise PackageError(f"Required package input is missing: {display_path(path)}")
     return path.read_bytes()
+
+
+def library_bytes(path: Path) -> bytes:
+    data = file_bytes(path)
+    if path.suffix == ".dll":
+        valid = len(data) >= 64 and data[:2] == b"MZ"
+        if valid:
+            offset = struct.unpack_from("<I", data, 60)[0]
+            valid = offset >= 64 and offset + 24 <= len(data)
+        if valid:
+            machine, sections, _stamp, _symbols, _count, optional_size, flags = struct.unpack_from("<HHIIIHH", data, offset + 4)
+            valid = (data[offset:offset + 4] == b"PE\0\0" and machine == 0x8664
+                     and flags & 0x2000 and sections > 0 and optional_size >= 112
+                     and offset + 24 + optional_size + sections * 40 <= len(data)
+                     and struct.unpack_from("<H", data, offset + 24)[0] == 0x20B)
+    elif path.suffix == ".so":
+        valid = (len(data) >= 64 and data[:6] == b"\x7fELF\x02\x01"
+                 and struct.unpack_from("<HH", data, 16) == (3, 62))
+    else:
+        try:
+            audit_library_data(data, path.name)
+        except ValueError as error:
+            raise PackageError(f"Invalid library {display_path(path)}: Mach-O audit failed") from error
+        valid = True
+    if not valid:
+        raise PackageError(f"Invalid or truncated library: {display_path(path)}")
+    return data
+
+
+def icon_import(resource: str) -> bytes:
+    return (f'[remap]\n\nimporter="texture"\ntype="CompressedTexture2D"\n\n'
+            f'[deps]\n\nsource_file="res://{resource}"\n\n[params]\n\n'
+            'editor/scale_with_editor_scale=true\n'
+            'editor/convert_colors_with_editor_theme=true\n').encode("utf-8")
 
 
 def add(entries: dict[str, bytes], destination: str, data: bytes) -> None:
@@ -142,12 +178,14 @@ def collect_core(
         ),
     )
     for source, destination in binary_inputs:
-        add(entries, destination, file_bytes(source))
+        add(entries, destination, library_bytes(source))
 
     for icon in sorted((source_root / "icons").glob("*.svg")):
         if icon.name == "LimboAI.svg":
             continue
-        add(entries, f"addons/limboai/icons/{icon.name}", file_bytes(icon))
+        resource = f"addons/limboai/icons/{icon.name}"
+        add(entries, resource, file_bytes(icon))
+        add(entries, resource + ".import", icon_import(resource))
     for name in CORE_DOCS:
         add(entries, f"addons/limboai/{name}", file_bytes(source_root / name))
     add(entries, "addons/limboai/version.txt", (VERSION + "\n").encode("utf-8"))
