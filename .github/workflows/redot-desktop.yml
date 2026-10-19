@@ -90,6 +90,7 @@ jobs:
           $editor = "build/ci-addon/addons/limboai/bin/liblimboai.windows.editor.x86_64.dll"
           $release = "build/ci-addon/addons/limboai/bin/liblimboai.windows.template_release.x86_64.dll"
           & scripts/audit_windows_binary.ps1 -Library @($editor, $release) | Tee-Object build/windows-binary-audit.log
+          if ($LASTEXITCODE -ne 0) { throw "Windows binary audit failed" }
           python scripts/run_fixture.py --engine $env:REDOT_BIN --addon-project build/ci-addon --output ../build/redot-limboai/ci/windows-editor --label ci-windows-editor
           if ($LASTEXITCODE -ne 0) { throw "Windows editor fixture failed" }
           python scripts/run_fixture.py --engine $env:REDOT_BIN --addon-project build/ci-addon --output ../build/redot-limboai/ci/windows-release --label ci-windows-release --force-windows-release-library
