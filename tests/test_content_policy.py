@@ -41,6 +41,40 @@ class ContentPolicyTests(unittest.TestCase):
                         self.assertTrue(hits)
                         self.assertNotIn(value, str(hits))
 
+    def test_attached_compiler_paths_are_rejected_and_redacted_in_all_encodings(self):
+        prefixes = ("-I", "-L", "-isystem", "-iquote", "/I", "/Fo", "/Fd",
+                    "-Wl,-rpath,", "--sysroot=", "@")
+        roots = (chr(47) + "workdir/build/source.cpp",
+                 chr(81) + ":" + chr(92) + "toolcache" + chr(92) + "source.cpp")
+        for prefix in prefixes:
+            for root in roots:
+                for quoted in (False, True):
+                    value = root.replace("source", "source file") if quoted else root
+                    command = "cc " + prefix + ('"' + value + '"' if quoted else value) + " -c task.cpp"
+                    with self.subTest(prefix=prefix, quoted=quoted, root=root):
+                        sanitized = policy.sanitize_text(command)
+                        self.assertNotIn(value, sanitized)
+                        self.assertIn(prefix + ('"' if quoted else '') + "<private path>", sanitized)
+                        self.assertTrue(sanitized.endswith(" -c task.cpp"))
+                        for encoding in ("utf-8", "utf-16le", "utf-16be"):
+                            self.assertTrue(policy.scan_blob("command.log", command.encode(encoding)))
+                            self.assertEqual(policy.scan_blob("command.log", sanitized.encode(encoding)), [])
+
+    def test_compiler_diagnostics_preserve_location_suffix_and_message(self):
+        roots = (chr(81) + ":" + chr(92) + "build folder" + chr(92) + "source.cpp",
+                 chr(47) + "workdir/build folder/source.cpp")
+        for root in roots:
+            for suffix in ("(42): error C2065: missing_name", ":42:7: error: missing_name"):
+                diagnostic = root + suffix
+                self.assertEqual(policy.sanitize_text(diagnostic), "<private path>" + suffix)
+                self.assertTrue(policy.scan_blob("compiler.log", diagnostic.encode()))
+
+    def test_consecutive_msvc_switches_are_preserved_and_path_free(self):
+        command = "cl /nologo /TP /std:c++17 /O2 /EHsc /MD /W4 /c task.cpp"
+        self.assertEqual(policy.sanitize_text(command), command)
+        for encoding in ("utf-8", "utf-16le", "utf-16be"):
+            self.assertEqual(policy.scan_blob("command.log", command.encode(encoding)), [])
+
     def test_private_key_header_variants_and_nested_archive_members(self):
         for kind in ("", "RSA ", "EC ", "OPENSSH ", "ENCRYPTED ", "DSA "):
             secret = "-----BEGIN " + kind + "PRIVATE KEY-----"

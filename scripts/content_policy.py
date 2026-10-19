@@ -15,12 +15,40 @@ import zipfile
 import zlib
 
 
+# Unquoted command paths end at whitespace; quotes and diagnostic locations
+# supply the context needed to retain spaces inside a path value.
 PATH_PATTERNS = (
-    ("drive-root", re.compile(r"(?<!\w)[A-Za-z]:[\\/][^\r\n\x00\"<>|]*")),
-    ("network-root", re.compile(r"(?<![:\w/\\])(?:\\\\|//)[^\\/\s\x00]+[\\/](?![\\/])[^\r\n\x00\"<>|]+")),
-    ("rooted-path", re.compile(r"(?<![\w\x3a/\\.])/(?!\.{1,2}/)(?:[\w .~@%+$()-]+/)+[\w .~@%+$()-]+")),
-    ("home-or-mount-root", re.compile(r"(?<![\w\x3a/\\.])/(?:home|Users|mnt|media|Volumes|workspace|workspaces|tmp)(?=[/\s\x00\"']|$)(?:/[^\r\n\x00\"'<>|]*)?", re.I)),
+    ("drive-root", re.compile(r"(?<!\w)[A-Za-z]:[\\/][^\s\x00\"'<>|(),;:]*")),
+    ("network-root", re.compile(r"(?<![:\w/\\])(?:\\\\|//)[^\\/\s\x00]+[\\/](?![\\/])[^\s\x00\"'<>|(),;:]+")),
+    ("rooted-path", re.compile(r"(?<![\w\x3a/\\.])/(?!\.{1,2}/)(?:[\w.~@%+$-]+/)+[\w.~@%+$-]+")),
+    ("home-or-mount-root", re.compile(r"(?<![\w\x3a/\\.])/(?:home|Users|mnt|media|Volumes|workspace|workspaces|tmp)(?=[/\s\x00\"']|$)(?:/[^\s\x00\"'<>|(),;:]*)?", re.I)),
 )
+ABSOLUTE_START = r"(?:[A-Za-z]:[\\/]|/(?!/)|\\\\|//)"
+QUOTED_PATH = re.compile(r"(?P<quote>[\"'])(?P<path>" + ABSOLUTE_START + r"[^\r\n\x00]*?)(?P=quote)")
+DIAGNOSTIC_PATH = re.compile(
+    r"(?<![\w\x3a/\\])(?P<path>" + ABSOLUTE_START + r"[^\r\n\x00\"'<>|]*?)"
+    r"(?=\(\d+(?:,\d+)?\):|:\d+(?::\d+)?:)"
+)
+COMPILER_PATH = re.compile(
+    r"(?<!\w)(?:-isystem|-iquote|-I|-L|/I|/Fo|/Fd|-Wl,-rpath,|--sysroot=|@)"
+    r"(?P<quote>[\"'])?(?P<path>" + ABSOLUTE_START
+    + r"(?(quote)[^\r\n\x00]*?|[^\s\x00\"'<>|(),;:]*))(?(quote)(?P=quote))"
+)
+
+
+def path_spans(text: str):
+    compiler = list(COMPILER_PATH.finditer(text))
+    for match in compiler:
+        yield match.start("path"), match.end("path"), "compiler-path"
+    patterns = (("rooted-path", QUOTED_PATH), ("rooted-path", DIAGNOSTIC_PATH), *PATH_PATTERNS)
+    for category, pattern in patterns:
+        for match in pattern.finditer(text):
+            if any(match.start() < option.end() and match.end() > option.start() for option in compiler):
+                continue
+            group = "path" if pattern in (QUOTED_PATH, DIAGNOSTIC_PATH) else 0
+            yield match.start(group), match.end(group), category
+
+
 CONTENT_PATTERNS = (
     ("private-key", re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----")),
     ("credential", re.compile(r"\b(?:ghp_|github_pat_)[A-Za-z0-9_]+")),
@@ -40,8 +68,18 @@ def sanitize_text(value: str, replacements=()) -> str:
         for spelling in (original, original.replace("\\", "/"), original.replace("\\", "\\\\")):
             if spelling:
                 value = value.replace(spelling, replacement)
-    for _category, pattern in PATH_PATTERNS:
-        value = pattern.sub(lambda match: match[0] if system_path(match[0]) else "<private path>", value)
+    spans = sorted((start, end) for start, end, category in path_spans(value)
+                   if category == "compiler-path" or not system_path(value[start:end]))
+    # Merge overlapping recognizers so a quoted or diagnostic path is replaced
+    # once, with its quotes, line numbers and following message left intact.
+    merged = []
+    for start, end in spans:
+        if merged and start < merged[-1][1]:
+            merged[-1] = (merged[-1][0], max(end, merged[-1][1]))
+        else:
+            merged.append((start, end))
+    for start, end in reversed(merged):
+        value = value[:start] + "<private path>" + value[end:]
     return value
 
 
@@ -66,10 +104,9 @@ def display_path(path: Path, root: Path | None = None) -> str:
 
 def text_categories(text: str, minimum_path: int = 0) -> set[str]:
     categories = set()
-    for category, pattern in PATH_PATTERNS:
+    for start, end, category in path_spans(text):
         # Short slash fragments also occur by chance in compressed image data.
-        if any(not system_path(match[0]) and len(match[0]) >= minimum_path
-               for match in pattern.finditer(text)):
+        if end - start >= minimum_path and (category == "compiler-path" or not system_path(text[start:end])):
             categories.add(category)
     for category, pattern in CONTENT_PATTERNS:
         if pattern.search(text):
