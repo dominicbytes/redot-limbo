@@ -68,6 +68,7 @@ private:
 		ObjectID agent_id;
 		ObjectID scene_root_id;
 		bool initialized = false;
+		bool context_failed = false;
 		Ref<Blackboard> blackboard;
 		BTTask *parent = nullptr;
 		Vector<Ref<BTTask>> children;
@@ -86,6 +87,7 @@ private:
 	} data;
 
 	bool _has_valid_context() const;
+	Status _fail_context();
 
 	mutable bool _is_cloning = false;
 

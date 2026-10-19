@@ -23,5 +23,7 @@
   "foreach_shrink_cleanup",
   "children_replacement_links",
   "probability_weight_validation",
-  "cancelled_context_loss"
+  "cancelled_context_loss",
+  "player_context_loss",
+  "state_context_loss"
 ]

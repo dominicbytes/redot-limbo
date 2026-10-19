@@ -94,13 +94,20 @@ void BTState::_exit() {
 }
 
 void BTState::_update(double p_delta) {
+	if (bt_instance.is_valid() && bt_instance->has_context_failed() && !bt_instance->is_instance_valid()) {
+		return;
+	}
 	GDVIRTUAL_CALL(_update, p_delta);
 	if (!is_active()) {
 		// Bail out if a transition happened in the meantime.
 		return;
 	}
 	ERR_FAIL_COND(bt_instance.is_null());
-	BT::Status status = bt_instance->update(p_delta);
+	const Ref<BTInstance> instance = bt_instance;
+	BT::Status status = instance->update(p_delta);
+	if (!is_active() || bt_instance != instance) {
+		return;
+	}
 	if (status == BTTask::SUCCESS) {
 		get_root()->dispatch(success_event, Variant());
 	} else if (status == BTTask::FAILURE) {

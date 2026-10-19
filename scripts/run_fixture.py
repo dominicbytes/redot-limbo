@@ -143,6 +143,31 @@ def run_command(
         return 124, output_text, True, time.monotonic() - started
 
 
+def unexpected_diagnostics(import_output: str, runtime_output: str, result) -> list[str]:
+    # These cases count errors through Logger with printing enabled. Accept only
+    # their exact diagnostic and count; all other runtime/import diagnostics fail.
+    context_error = "ERROR: BTTask: Agent or scene root no longer exists."
+    cases = result.get("cases", []) if isinstance(result, dict) and isinstance(result.get("cases"), list) else []
+    expected = sum(
+        2 for case in cases
+        if isinstance(case, dict)
+        and case.get("name") in {"player_context_loss", "state_context_loss"}
+        and case.get("passed") is True
+        and isinstance(case.get("details"), dict)
+        and case["details"].get("error_counts") == [1, 1]
+    )
+    actual = runtime_output.splitlines().count(context_error)
+    lines = [line for line in import_output.splitlines() if FAILURE_PATTERN.search(line)]
+    lines.extend(
+        line for line in runtime_output.splitlines()
+        if FAILURE_PATTERN.search(line)
+        and not (expected == actual and expected > 0 and line == context_error)
+    )
+    if expected and actual != expected:
+        lines.append(f"Expected {expected} context-loss diagnostics, received {actual}.")
+    return lines
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--engine", type=Path, required=True)
@@ -298,11 +323,7 @@ def main() -> int:
         result_path.write_text(sanitize_text(result_path.read_text(encoding="utf-8"), replacements), encoding="utf-8")
     result = sanitize(result, replacements)
 
-    suspicious_lines = [
-        line
-        for line in (import_output + "\n" + output_text).splitlines()
-        if FAILURE_PATTERN.search(line)
-    ]
+    suspicious_lines = unexpected_diagnostics(import_output, output_text, result)
     passed = (
         not import_timed_out
         and import_return_code == 0

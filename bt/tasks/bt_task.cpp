@@ -215,6 +215,7 @@ void BTTask::initialize(Node *p_agent, const Ref<Blackboard> &p_blackboard, Node
 	data.blackboard = p_blackboard;
 	data.scene_root_id = p_scene_root->get_instance_id();
 	data.initialized = true;
+	data.context_failed = false;
 	for (int i = 0; i < data.children.size(); i++) {
 		get_child(i)->initialize(p_agent, p_blackboard, p_scene_root);
 		ERR_FAIL_COND_MSG(!_has_valid_context(), "BTTask: Agent or scene root no longer exists.");
@@ -250,13 +251,29 @@ Ref<BTTask> BTTask::clone() const {
 	return inst;
 }
 
+BT::Status BTTask::_fail_context() {
+	if (data.context_failed) {
+		data.status = FAILURE;
+		return FAILURE;
+	}
+	data.context_failed = true;
+	abort();
+	data.status = FAILURE;
+	// The outer executing task reports context loss for the whole execution.
+	for (BTTask *task = data.parent; task != nullptr; task = task->data.parent) {
+		if (task->data.executing) {
+			return FAILURE;
+		}
+	}
+	ERR_PRINT("BTTask: Agent or scene root no longer exists.");
+	return FAILURE;
+}
+
 BT::Status BTTask::execute(double p_delta) {
 	ERR_FAIL_COND_V_MSG(data.executing || data.aborting, FRESH, "Cannot execute a task recursively.");
 	const Ref<BTTask> keep_alive{ this };
-	if (!_has_valid_context()) {
-		abort();
-		data.status = FAILURE;
-		ERR_FAIL_V_MSG(FAILURE, "BTTask: Agent or scene root no longer exists.");
+	if (data.context_failed || !_has_valid_context()) {
+		return _fail_context();
 	}
 	data.executing = true;
 	data.execution_generation = data.abort_generation;
@@ -266,10 +283,9 @@ BT::Status BTTask::execute(double p_delta) {
 			return FRESH;
 		}
 		if (p_check_context && !_has_valid_context()) {
-			abort();
-			data.status = FAILURE;
+			Status status = _fail_context();
 			data.executing = false;
-			ERR_FAIL_V_MSG(FAILURE, "BTTask: Agent or scene root no longer exists.");
+			return status;
 		}
 		data.executing = false;
 		return p_status;

@@ -205,7 +205,15 @@ void BTPlayer::update(double p_delta) {
 	}
 
 	if (active) {
-		BT::Status status = bt_instance->update(p_delta);
+		const Ref<BTInstance> instance = bt_instance;
+		if (instance->has_context_failed() && !instance->is_instance_valid()) {
+			set_active(false);
+			return;
+		}
+		BT::Status status = instance->update(p_delta);
+		if (bt_instance == instance && !instance->is_instance_valid()) {
+			set_active(false);
+		}
 		emit_signal(LW_NAME(updated), status);
 #ifndef DISABLE_DEPRECATED
 		if (status == BTTask::SUCCESS || status == BTTask::FAILURE) {
