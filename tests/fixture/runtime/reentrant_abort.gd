@@ -87,6 +87,7 @@ static func run(fixture: SceneTree) -> void:
 	passed = passed and limit.execute(0.0) == BT.RUNNING and limit.execute(1.1) == BT.FAILURE and limited.status == BT.FRESH and limited.exits == 2
 	fixture._record_case("reentrant_abort", passed, {"callback_checks": checks})
 	_test_state_transition(fixture, host)
+	_test_cancelled_context_loss(fixture, host)
 	host.free()
 
 
@@ -112,3 +113,37 @@ static func _test_state_transition(fixture: SceneTree, host: Node) -> void:
 	action.callback = Callable()
 	hsm.set_active(false)
 	fixture._record_case("abort_on_state_transition", passed, {"exits": action.exits})
+
+
+static func _test_cancelled_context_loss(fixture: SceneTree, host: Node) -> void:
+	var scene := Node.new()
+	host.add_child(scene)
+	var hsm := LimboHSM.new()
+	hsm.update_mode = LimboHSM.MANUAL
+	host.add_child(hsm)
+	var state := BTState.new()
+	var idle := LimboState.new()
+	var unexpected := LimboState.new()
+	var tree := BehaviorTree.new()
+	tree.root_task = Action.new()
+	state.behavior_tree = tree
+	state.failure_event = &"tree_failed"
+	state.success_event = &"tree_succeeded"
+	state.set_scene_root_hint(scene)
+	hsm.add_child(state)
+	hsm.add_child(idle)
+	hsm.add_child(unexpected)
+	hsm.initial_state = state
+	hsm.add_transition(idle, unexpected, &"tree_failed")
+	hsm.add_transition(idle, unexpected, &"tree_succeeded")
+	hsm.initialize(host)
+	hsm.set_active(true)
+	var action: BTTask = state.get_bt_instance().get_root_task()
+	action.callback = func() -> void:
+		hsm.change_active_state(idle)
+		scene.free()
+	hsm.update(0.016)
+	var passed: bool = hsm.get_active_state() == idle and action.status == BT.FRESH and action.exits == 1 and state.get_bt_instance().get_last_status() == BT.FRESH
+	action.callback = Callable()
+	hsm.set_active(false)
+	fixture._record_case("cancelled_context_loss", passed, {"exits": action.exits, "status": action.status})

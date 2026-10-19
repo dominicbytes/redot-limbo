@@ -252,6 +252,10 @@ BT::Status BTTask::execute(double p_delta) {
 	data.executing = true;
 	data.execution_generation = data.abort_generation;
 	auto finish = [this](Status p_status) {
+		if (_is_execution_cancelled()) {
+			data.executing = false;
+			return FRESH;
+		}
 		if (!_has_valid_context()) {
 			abort();
 			data.status = FAILURE;
