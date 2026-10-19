@@ -3,7 +3,7 @@
 This package contains the optional LimboAI demo/tutorial and branding. It does
 not contain the native core addon.
 
-Install the matching `1.6.0+redot.26.2.1` core archive first, then copy this
+Install the matching `1.8.0+redot.26.2.1` core archive first, then copy this
 demo project to a separate directory and open it with Redot 26.2. Start with
 `demo/scenes/showcase.tscn`.
 

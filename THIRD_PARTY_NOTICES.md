@@ -2,8 +2,8 @@
 
 ## LimboAI
 
-This downstream is based on LimboAI 1.6.0 by Serhii Snitsaruk and contributors,
-upstream commit `91b22a187f7cd701e25eedd6dcff34179795e687`.
+This downstream is based on LimboAI 1.8.0 by Serhii Snitsaruk and contributors,
+upstream commit `3fbd85118b924d50c10a495ad5c7175028649d77`.
 The source and core addon are distributed under the MIT-style license in
 `LICENSE.md`.
 
