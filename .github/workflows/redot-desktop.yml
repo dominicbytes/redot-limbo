@@ -96,6 +96,13 @@ jobs:
           python scripts/run_fixture.py --engine $env:REDOT_BIN --addon-project build/ci-addon --output ../build/redot-limboai/ci/windows-release --label ci-windows-release --force-windows-release-library
           if ($LASTEXITCODE -ne 0) { throw "Windows release fixture failed" }
 
+      - name: Remove MSVC linker byproducts from the addon
+        if: always()
+        shell: pwsh
+        run: |
+          # Import libraries and export files are not part of the addon and embed object-file paths.
+          Get-ChildItem build/ci-addon/addons/limboai/bin -Recurse -File -Include *.exp, *.lib, *.pdb, *.ilk -ErrorAction SilentlyContinue | Remove-Item -Force
+
       - name: Scan Windows evidence before upload
         id: scan_windows_evidence
         if: always()
