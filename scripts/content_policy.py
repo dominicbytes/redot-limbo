@@ -53,7 +53,9 @@ CONTENT_PATTERNS = (
     ("private-key", re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----")),
     ("credential", re.compile(r"\b(?:ghp_|github_pat_)[A-Za-z0-9_]+")),
     ("fixture-evidence", re.compile(r"LIMBOAI_FIXTURE|fixture-result\.json")),
-    ("internal-notes", re.compile(r"(?:docs[/\\](?:gamedev|softwaredev)|reports[/\\]test-results)[/\\]", re.I)),
+    ("internal-notes", re.compile(
+        r"(?:docs[/\\](?:gamedev|softwaredev)|reports)[/\\]"
+        r"|(?:^|[/\\\s\"'!])[\w.-]*(?:preflight|handoff)[\w.-]*(?:[/\\]|\.[\w.-]+)", re.I)),
 )
 MAX_ARCHIVE_BYTES = 128 * 1024 * 1024
 MAX_ARCHIVE_DEPTH = 8

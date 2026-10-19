@@ -75,6 +75,20 @@ class ContentPolicyTests(unittest.TestCase):
         for encoding in ("utf-8", "utf-16le", "utf-16be"):
             self.assertEqual(policy.scan_blob("command.log", command.encode(encoding)), [])
 
+    def test_working_record_paths_are_rejected_in_members_and_encoded_content(self):
+        names = ("reports/qa.md", "nested/reports/results.json", "docs/gamedev/plan.md",
+                 "docs/softwaredev/fixes/record.md", "notes/release-preflight.md",
+                 "notes/HANDOFF.txt", "release-preflight/checks.json")
+        for name in names:
+            with self.subTest(name=name):
+                hits = policy.scan_blob("package.zip", archive({name: b"private notes"}))
+                self.assertIn("internal-notes", {category for _, category in hits})
+                for encoding in ("utf-8", "utf-16le", "utf-16be"):
+                    hits = policy.scan_blob("manifest.txt", name.encode(encoding))
+                    self.assertIn("internal-notes", {category for _, category in hits})
+        for text in ("COMPATIBILITY.md", "docs/build.md", "A preflight check precedes the handoff."):
+            self.assertEqual(policy.scan_blob("README.md", text.encode()), [])
+
     def test_private_key_header_variants_and_nested_archive_members(self):
         for kind in ("", "RSA ", "EC ", "OPENSSH ", "ENCRYPTED ", "DSA "):
             secret = "-----BEGIN " + kind + "PRIVATE KEY-----"
