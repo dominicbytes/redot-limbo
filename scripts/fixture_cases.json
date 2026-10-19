@@ -26,5 +26,11 @@
   "cancelled_context_loss",
   "player_context_loss",
   "state_context_loss",
-  "player_setup_replacement"
+  "player_setup_replacement",
+  "hsm_transition_completion",
+  "hsm_exit_transaction",
+  "blackboard_binding_roots",
+  "hsm_guard_fallback",
+  "blackboard_inherited_prefetch",
+  "hsm_expired_state_guard"
 ]
