@@ -11,6 +11,8 @@
 
 #include "limbo_state.h"
 
+#include "limbo_hsm.h"
+
 #include "../compat/limbo_compat.h"
 
 #ifdef LIMBOAI_MODULE
@@ -25,6 +27,14 @@
 
 void LimboState::restart() {
 	ERR_FAIL_COND(!active);
+	LimboHSM *hsm = Object::cast_to<LimboHSM>(this);
+	ERR_FAIL_COND_MSG(hsm && hsm->exiting_state, "LimboState: Unable to restart while exiting a state.");
+
+	LimboHSM *parent_hsm = Object::cast_to<LimboHSM>(get_parent());
+	if (parent_hsm) {
+		parent_hsm->change_active_state(this);
+		return;
+	}
 
 	_exit();
 	_enter();

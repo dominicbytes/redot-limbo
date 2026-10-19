@@ -32,5 +32,7 @@
   "blackboard_binding_roots",
   "hsm_guard_fallback",
   "blackboard_inherited_prefetch",
-  "hsm_expired_state_guard"
+  "hsm_expired_state_guard",
+  "hsm_restart_transaction",
+  "hsm_root_restart"
 ]

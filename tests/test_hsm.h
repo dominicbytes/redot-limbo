@@ -419,6 +419,18 @@ TEST_CASE("[Modules][LimboAI] HSM") {
 		CHECK(alpha_exits->num_callbacks == 1); // * exited
 		CHECK(alpha_entries->num_callbacks == 2); // * re-entered
 	}
+	SUBCASE("Test child restart rejects exit-time dispatch") {
+		state_alpha->call_on_exit(callable_mp_static(_on_enter_dispatch).bind(state_alpha, StringName("event_one")));
+		state_alpha->restart();
+		CHECK(hsm->get_active_state() == state_alpha);
+		CHECK(state_alpha->is_active());
+		CHECK_FALSE(state_beta->is_active());
+		CHECK(alpha_entries->num_callbacks == 2);
+		CHECK(alpha_exits->num_callbacks == 1);
+		CHECK(beta_entries->num_callbacks == 0);
+		hsm->set_active(false);
+		CHECK(alpha_entries->num_callbacks == alpha_exits->num_callbacks);
+	}
 	SUBCASE("Test EVENT_FINISHED should be unique") {
 		CHECK(state_alpha->event_finished() != state_beta->event_finished());
 		CHECK(state_alpha->event_finished() != state_gamma->event_finished());

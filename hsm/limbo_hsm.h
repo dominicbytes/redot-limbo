@@ -27,6 +27,8 @@ public:
 	};
 
 private:
+	friend LimboState;
+
 	struct TransitionKeyHasher {
 		static uint32_t hash(const TransitionKey &P) {
 			uint64_t h1 = HashMapHasherDefault::hash(P.first);

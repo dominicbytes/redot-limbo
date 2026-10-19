@@ -58,6 +58,8 @@ func _run() -> void:
 	_test_blackboard_inherited_prefetch()
 	_test_hsm_transition_completion()
 	_test_hsm_exit_transaction()
+	_test_hsm_restart_transaction()
+	_test_hsm_root_restart()
 	_test_hsm_guard_fallback()
 	_test_hsm_expired_state_guard()
 	var tree: BehaviorTree = _test_resource_roundtrip()
@@ -843,3 +845,144 @@ func _test_hsm_expired_state_guard() -> void:
 	_record_case("hsm_expired_state_guard", denied_before and denied_after and allowed_after_clear, {"denied_before": denied_before, "denied_after": denied_after, "allowed_after_clear": allowed_after_clear})
 	hsm.set_active(false)
 	host.free()
+
+
+func _test_hsm_restart_transaction() -> void:
+	var passed := true
+	var observations: Array[Dictionary] = []
+	for kind: String in ["state", "bt", "nested"]:
+		for mode: String in ["dispatch", "stop", "parent", "owner_restart", "self_restart"]:
+			var host := Node.new()
+			root.add_child(host)
+			var hsm := LimboHSM.new()
+			hsm.update_mode = LimboHSM.MANUAL
+			host.add_child(hsm)
+			var owner_hsm := LimboHSM.new()
+			var outside := LimboState.new()
+			hsm.add_child(owner_hsm)
+			hsm.add_child(outside)
+			var a: LimboState = LimboState.new()
+			var task_state: BTState = null
+			if kind != "state":
+				a.free()
+				task_state = BTState.new()
+				var tree := BehaviorTree.new()
+				var task := StatusAction.new()
+				task.result = BT.RUNNING
+				tree.root_task = task
+				task_state.behavior_tree = tree
+				task_state.set_scene_root_hint(host)
+				if kind == "nested":
+					a = LimboHSM.new()
+					a.add_child(task_state)
+				else:
+					a = task_state
+			var b := LimboState.new()
+			owner_hsm.add_child(a)
+			owner_hsm.add_child(b)
+			owner_hsm.add_transition(a, b, &"go")
+			hsm.add_transition(owner_hsm, outside, &"parent")
+			var states: Array[LimboState] = [hsm, owner_hsm, a, b, outside]
+			if kind == "nested":
+				states.append(task_state)
+			var counts: Array[Dictionary] = []
+			for state: LimboState in states:
+				var count: Dictionary = {"entries": 0, "exits": 0}
+				counts.append(count)
+				state.entered.connect(func() -> void: count["entries"] += 1)
+				state.exited.connect(func() -> void: count["exits"] += 1)
+			hsm.initialize(host)
+			hsm.set_active(true)
+			hsm.update(FIXED_DELTA)
+			var running_task: StatusAction = null
+			if task_state != null:
+				running_task = task_state.get_bt_instance().get_root_task() as StatusAction
+			var results: Array[bool] = []
+			a.exited.connect(func() -> void:
+				if counts[2]["exits"] != 1:
+					return
+				match mode:
+					"dispatch": results.append(owner_hsm.dispatch(&"go"))
+					"stop": hsm.set_active(false)
+					"parent": results.append(owner_hsm.dispatch(&"parent"))
+					"owner_restart", "self_restart":
+						var print_errors: bool = Engine.print_error_messages
+						Engine.print_error_messages = false
+						if mode == "owner_restart":
+							owner_hsm.restart()
+						else:
+							a.restart()
+						Engine.print_error_messages = print_errors
+			)
+			a.restart()
+			var mode_passed: bool = counts[2]["exits"] == 1 and not b.is_active() and not b.is_processing()
+			if mode == "stop" or mode == "parent":
+				mode_passed = mode_passed and not a.is_active() and not a.is_processing() and not owner_hsm.is_active() and owner_hsm.get_active_state() == null
+				mode_passed = mode_passed and counts[2]["entries"] == 1
+				if mode == "stop":
+					mode_passed = mode_passed and not hsm.is_active() and hsm.get_active_state() == null and not outside.is_active()
+				else:
+					mode_passed = mode_passed and results == [true] and hsm.is_active() and hsm.get_active_state() == outside and outside.is_active()
+			else:
+				mode_passed = mode_passed and hsm.get_active_state() == owner_hsm and owner_hsm.is_active() and owner_hsm.get_active_state() == a and a.is_active() and a.is_processing() and not outside.is_active()
+				mode_passed = mode_passed and counts[2]["entries"] == 2
+				if mode == "dispatch":
+					mode_passed = mode_passed and results == [false]
+			if running_task != null:
+				mode_passed = mode_passed and running_task.status == BT.FRESH and running_task.entries == 1 and running_task.exits == 1
+				if a.is_active():
+					hsm.update(FIXED_DELTA)
+					mode_passed = mode_passed and running_task.status == BT.RUNNING and running_task.entries == 2 and running_task.exits == 1
+			for index: int in states.size():
+				mode_passed = mode_passed and counts[index]["entries"] - counts[index]["exits"] == int(states[index].is_active())
+			hsm.set_active(false)
+			for index: int in states.size():
+				mode_passed = mode_passed and not states[index].is_active() and not states[index].is_processing() and counts[index]["entries"] == counts[index]["exits"]
+			if running_task != null:
+				mode_passed = mode_passed and running_task.status == BT.FRESH and running_task.entries == running_task.exits
+			passed = passed and mode_passed
+			observations.append({"kind": kind, "mode": mode, "passed": mode_passed, "counts": counts, "results": results})
+			host.free()
+	_record_case("hsm_restart_transaction", passed, {"observations": observations})
+
+
+func _test_hsm_root_restart() -> void:
+	var passed := true
+	var observations: Array[Dictionary] = []
+	for mode: String in ["restart", "exit_restart"]:
+		var host := Node.new()
+		root.add_child(host)
+		var hsm := LimboHSM.new()
+		hsm.update_mode = LimboHSM.MANUAL
+		host.add_child(hsm)
+		var a := LimboState.new()
+		var b := LimboState.new()
+		hsm.add_child(a)
+		hsm.add_child(b)
+		var root_counts: Dictionary = {"entries": 0, "exits": 0}
+		hsm.entered.connect(func() -> void: root_counts["entries"] += 1)
+		hsm.exited.connect(func() -> void: root_counts["exits"] += 1)
+		var counts: Dictionary = {"entries": 0, "exits": 0}
+		a.entered.connect(func() -> void: counts["entries"] += 1)
+		a.exited.connect(func() -> void:
+			counts["exits"] += 1
+			if mode == "exit_restart" and counts["exits"] == 1:
+				var print_errors: bool = Engine.print_error_messages
+				Engine.print_error_messages = false
+				hsm.restart()
+				Engine.print_error_messages = print_errors
+		)
+		hsm.initialize(host)
+		hsm.set_active(true)
+		if mode == "restart":
+			hsm.change_active_state(b)
+			hsm.restart()
+			passed = passed and hsm.is_active() and hsm.get_active_state() == a and a.is_active() and not b.is_active() and counts == {"entries": 2, "exits": 1}
+		hsm.set_active(false)
+		var mode_passed: bool = not hsm.is_active() and hsm.get_active_state() == null and not a.is_active() and not b.is_active() and not a.is_processing() and counts["entries"] == counts["exits"]
+		var expected_entries: int = 2 if mode == "restart" else 1
+		mode_passed = mode_passed and root_counts == {"entries": expected_entries, "exits": expected_entries}
+		passed = passed and mode_passed
+		observations.append({"mode": mode, "passed": mode_passed, "counts": counts, "root_counts": root_counts})
+		host.free()
+	_record_case("hsm_root_restart", passed, {"observations": observations})

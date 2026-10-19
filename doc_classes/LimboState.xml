@@ -119,7 +119,7 @@
 		<method name="restart">
 			<return type="void" />
 			<description>
-				If it's active, exit and enter again.
+				If it's active, exit and enter again. A child state restarts through its parent [LimboHSM]'s same-state transition, so exit-time deactivation or an ancestor transition can cancel reentry. Restarting a machine while it is exiting a state is rejected with an error. Restarting the root machine exits it and enters its initial state again.
 			</description>
 		</method>
 		<method name="set_guard">
