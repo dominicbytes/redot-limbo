@@ -65,3 +65,9 @@ can edit fields of an existing value. Defining a custom layout and field names
 requires 26.3 script; selecting the type does not invent a schema. Struct values
 and syntax cannot be brought back to 26.2. No typed Struct C++ wrapper or other
 26.3-only API is added to the locked binding.
+
+On downgrade to 26.2, saved Struct syntax fails resource parsing. A type-only
+bound-mode parameter can load, but its unsupported `type = 39` declaration is
+preserved with an error and no saved-value editor. It is not converted to Nil.
+Back up and convert or remove every Struct declaration on 26.3 before downgrade;
+do not resave failed or unsupported resources on 26.2. See `MIGRATION.md`.

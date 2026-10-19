@@ -58,8 +58,12 @@ void EditorPropertyBBParam::_create_value_editor(Object *p_object, const String 
 		_remove_value_editor();
 	}
 
+	ERR_FAIL_COND_MSG(int(p_type) < 0 || int(p_type) >= VARIANT_TYPE_COUNT(), vformat("BBParam: Variant type %d is not supported by this runtime; value editor unavailable.", int(p_type)));
+
 	const String hint_text = p_type == Variant::OBJECT ? "Resource" : "";
 	value_editor = EditorInterface::get_singleton()->get_inspector()->instantiate_property_editor(p_object, p_type, p_property, property_hint, hint_text, PROPERTY_USAGE_EDITOR);
+
+	ERR_FAIL_NULL_MSG(value_editor, "BBParam: Native value editor unavailable for this Variant type.");
 
 	bool is_bottom = false;
 	switch (p_type) {
@@ -187,9 +191,13 @@ void EditorPropertyBBParam::_update_property() {
 		bottom_container->hide();
 		type_choice->set_button_icon(LimboUtility::get_singleton()->get_task_icon(LW_NAME(LimboExtraVariable)));
 	} else {
-		// _create_value_editor(param->get_type());
 		_create_value_editor(param.ptr(), LW_NAME(saved_value), param->get_type());
 		variable_editor->hide();
+		if (!value_editor) {
+			set_bottom_editor(nullptr);
+			bottom_container->hide();
+			return;
+		}
 		value_editor->show();
 		value_editor->set_object_and_property(param.ptr(), LW_NAME(saved_value));
 		value_editor->update_property();
@@ -214,7 +222,8 @@ void EditorPropertyBBParam::_notification(int p_what) {
 			}
 
 			{
-				String type = Variant::get_type_name(_get_edited_param()->get_type());
+				Variant::Type param_type = _get_edited_param()->get_type();
+				String type = int(param_type) >= 0 && int(param_type) < VARIANT_TYPE_COUNT() ? Variant::get_type_name(param_type) : String("Object");
 				type_choice->set_button_icon(get_theme_icon(type, LW_NAME(EditorIcons)));
 			}
 

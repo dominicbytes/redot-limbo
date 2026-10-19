@@ -59,3 +59,15 @@ Struct values; define custom fields in 26.3 scripts. Keep Struct resources and
 syntax out of any project that must still open on 26.2. See `LIMITATIONS.md`
 for the temporary headless-editor shutdown issue and its exact import-only CI
 gate. A runtime error or unexpected warning remains a failure on either engine.
+
+## From Redot 26.3 back to 26.2
+
+Back up the project and convert or remove every Struct value and declaration
+on 26.3 before opening it on 26.2, including parameters bound to blackboard
+variables. A saved Struct value fails the 26.2 text parser with an unexpected
+`Struct` identifier and does not load. A bound-mode, type-only BBVariant can
+load with `type = 39` because it contains no Struct syntax. Its declaration is
+preserved with an unsupported-type error; switching to saved-value mode leaves
+its native value editor unavailable rather than converting the declaration to
+Nil. Neither outcome provides downgrade conversion. Do not resave failed or
+unsupported resources on 26.2; restore the backup or finish conversion on 26.3.

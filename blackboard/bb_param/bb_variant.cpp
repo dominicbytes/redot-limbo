@@ -24,7 +24,9 @@
 void BBVariant::set_type(Variant::Type p_type) {
 	if (type != p_type) {
 		type = p_type;
-		if (get_saved_value().get_type() != p_type) {
+		if (int(p_type) < 0 || int(p_type) >= VARIANT_TYPE_COUNT()) {
+			ERR_PRINT(vformat("BBVariant: Variant type %d is not supported by this runtime; declaration preserved.", int(p_type)));
+		} else if (get_saved_value().get_type() != p_type) {
 			_assign_default_value();
 		}
 		emit_changed();
