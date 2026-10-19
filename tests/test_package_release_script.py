@@ -4,9 +4,11 @@ import importlib.util
 from pathlib import Path
 import tempfile
 import unittest
+import sys
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "package_release.py"
+sys.path.insert(0, str(SCRIPT_PATH.parent))
 SPEC = importlib.util.spec_from_file_location("package_release", SCRIPT_PATH)
 assert SPEC is not None and SPEC.loader is not None
 PACKAGE_RELEASE = importlib.util.module_from_spec(SPEC)
@@ -40,6 +42,16 @@ class DeterministicPackageTests(unittest.TestCase):
             "OFL-1.1",
         )
         self.assertEqual(PACKAGE_RELEASE.demo_license("demo/ai/task.gd"), "MIT")
+
+    def test_encoded_private_content_is_rejected_without_echoing_tokens(self):
+        from test_content_policy import rooted_samples, archive
+        for value in rooted_samples() + ["-----BEGIN RSA PRIVATE KEY-----"]:
+            for encoding in ("utf-8", "utf-16le", "utf-16be"):
+                data = archive({"nested.xml": value.encode(encoding)})
+                with self.assertRaises(PACKAGE_RELEASE.PackageError) as raised:
+                    PACKAGE_RELEASE.scan_entries({"addons/limboai/nested.zip": data}, Path("."))
+                self.assertNotIn(value, str(raised.exception))
+                self.assertIn("addons/limboai/nested.zip", str(raised.exception))
 
 
 if __name__ == "__main__":

@@ -13,6 +13,8 @@ import sys
 from typing import Callable
 import zipfile
 
+from content_policy import display_path, scan_blob, sanitize_text
+
 
 VERSION = "1.8.0+redot.26.2.1"
 FIXED_ZIP_TIME = (1980, 1, 1, 0, 0, 0)
@@ -46,7 +48,7 @@ def sha256(data: bytes) -> str:
 
 def file_bytes(path: Path) -> bytes:
     if not path.is_file():
-        raise PackageError(f"Required package input is missing: {path}")
+        raise PackageError(f"Required package input is missing: {display_path(path)}")
     return path.read_bytes()
 
 
@@ -177,17 +179,11 @@ def collect_demo(source_root: Path) -> dict[str, bytes]:
 
 
 def scan_entries(entries: dict[str, bytes], source_root: Path) -> None:
-    forbidden_tokens = (
-        str(source_root.resolve()).encode("utf-8"),
-        str(source_root.resolve()).replace("\\", "/").encode("utf-8"),
-        b"/workspace/plugins/redot-limboai",
-        b"BEGIN PRIVATE KEY",
-        b"fixture-result.json",
-    )
     for path, data in entries.items():
-        for token in forbidden_tokens:
-            if token and token in data:
-                raise PackageError(f"Forbidden content token in {path}: {token!r}")
+        hits = scan_blob(path, data)
+        if hits:
+            file, category = hits[0]
+            raise PackageError(f"Forbidden content in {file}: {category}")
 
 
 def write_zip(path: Path, entries: dict[str, bytes]) -> None:
@@ -212,7 +208,7 @@ def git_value(source_root: Path, *arguments: str) -> str:
         text=True,
     )
     if result.returncode != 0:
-        raise PackageError(result.stderr.strip() or "Git command failed")
+        raise PackageError("Git command failed")
     return result.stdout.strip()
 
 
@@ -287,7 +283,7 @@ def main() -> int:
         f"{report['archives']['demo']['sha256']}  {demo_zip.name}\n",
         encoding="utf-8",
     )
-    print(json.dumps({"status": report["status"], "report": str(report_path)}))
+    print(json.dumps({"status": report["status"], "report": report_path.name}))
     return 0
 
 
@@ -295,5 +291,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (OSError, PackageError, subprocess.SubprocessError) as error:
-        print(f"FAIL: {error}", file=sys.stderr)
+        print("FAIL: " + sanitize_text(str(error)), file=sys.stderr)
         raise SystemExit(2)

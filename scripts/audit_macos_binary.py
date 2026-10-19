@@ -9,6 +9,8 @@ import json
 from pathlib import Path
 import struct
 
+from content_policy import display_path, scan_blob, sanitize_text
+
 
 FAT_MAGIC = 0xCAFEBABE
 MACHO_64_LE = 0xFEEDFACF
@@ -30,16 +32,6 @@ LC_BUILD_VERSION = 0x32
 PLATFORM_MACOS = 1
 EXPECTED_ARCHES = {"x86_64", "arm64"}
 EXPECTED_MIN_OS = "11.0.0"
-FORBIDDEN = (
-    b"D:\\",
-    b"/workspace",
-    b"<local workspace>",
-    b"LIMBOAI_FIXTURE",
-    b"ghp_",
-    b"BEGIN RSA PRIVATE",
-    b"BEGIN OPENSSH PRIVATE",
-    b"BEGIN EC PRIVATE",
-)
 DYLIB_COMMANDS = {
     LC_LOAD_DYLIB,
     LC_LOAD_WEAK_DYLIB,
@@ -133,7 +125,7 @@ def audit_thin(data: bytes, expected_cpu: int) -> dict[str, object]:
         raise ValueError("Mach-O install identity is missing")
     for dependency in dependencies:
         if not dependency.startswith(("/usr/lib/", "/System/Library/")):
-            raise ValueError(f"Non-system dependency: {dependency}")
+            raise ValueError("Non-system dependency")
     if symtab is None:
         raise ValueError("Mach-O symbol table is missing")
 
@@ -166,11 +158,15 @@ def audit_thin(data: bytes, expected_cpu: int) -> dict[str, object]:
 
 def audit_library(path: Path) -> dict[str, object]:
     data = path.read_bytes()
+    hits = scan_blob(display_path(path), data)
+    if hits:
+        file, category = hits[0]
+        raise ValueError(f"Forbidden content in {file}: {category}")
     if len(data) < 8:
-        raise ValueError(f"Truncated universal binary: {path}")
+        raise ValueError("Truncated universal binary")
     magic, count = struct.unpack_from(">II", data, 0)
     if magic != FAT_MAGIC:
-        raise ValueError(f"Not a universal Mach-O binary: {path}")
+        raise ValueError("Not a universal Mach-O binary")
     if count != len(EXPECTED_ARCHES):
         raise ValueError(f"Expected two Mach-O slices, got {count}")
     header_end = 8 + count * 20
@@ -205,11 +201,8 @@ def audit_library(path: Path) -> dict[str, object]:
             f"Expected install identity {expected_install_id!r}, got {sorted(install_ids)}"
         )
 
-    hits = [marker.decode("ascii", errors="replace") for marker in FORBIDDEN if marker in data]
-    if hits:
-        raise ValueError(f"Forbidden embedded strings: {hits}")
     return {
-        "path": str(path.resolve()),
+        "path": display_path(path),
         "sha256": sha256(data),
         "bytes": len(data),
         "architectures": sorted(architectures),
@@ -228,4 +221,9 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except (OSError, ValueError) as error:
+        import sys
+        print("FAIL: " + sanitize_text(str(error)), file=sys.stderr)
+        raise SystemExit(2)

@@ -156,7 +156,7 @@ jobs:
           mkdir -p build/ci-addon
           python3 -m SCons --project=build/ci-addon platform=linux target=editor arch=x86_64 -j2
           python3 -m SCons --project=build/ci-addon platform=linux target=template_release arch=x86_64 -j2
-          sh scripts/audit_linux_binary.sh \
+          bash scripts/audit_linux_binary.sh \
             build/ci-addon/addons/limboai/bin/liblimboai.linux.editor.x86_64.so \
             build/ci-addon/addons/limboai/bin/liblimboai.linux.template_release.x86_64.so \
             | tee build/linux-binary-audit.log
@@ -233,10 +233,6 @@ jobs:
             test "$archs" = "x86_64 arm64" || test "$archs" = "arm64 x86_64"
             nm -gj "$library" | grep '^_limboai_init$'
             otool -L "$library"
-            if strings -a "$library" | grep -E '/Users/runner|/workspace|LIMBOAI_FIXTURE|ghp_|BEGIN (RSA|OPENSSH|EC) PRIVATE'; then
-              echo "Forbidden embedded string in $library" >&2
-              exit 4
-            fi
           done
           build/ci-venv/bin/python scripts/audit_macos_binary.py \
             build/ci-addon/addons/limboai/bin/liblimboai.macos.editor.framework/liblimboai.macos.editor \
