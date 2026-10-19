@@ -5,7 +5,7 @@
   in `COMPATIBILITY.md`.
 - Delivery is GDExtension-only. The optional upstream engine-module lane and
   its module-only test runner are not shipped.
-- Only Redot 26.2 single-precision desktop builds are in scope.
+- Only the pinned Redot 26.2 and 26.3 single-precision desktop runtimes are in scope.
 - The provided Linux x86-64 libraries are built on Ubuntu 24.04 and require
   glibc 2.38 or newer. Older distributions need a source rebuild on an older
   compatible sysroot; no musl build is included.
@@ -33,3 +33,30 @@
   performance guarantee. Hardware, behavior complexity, and game code remain
   material. Controlled repeated runs and debugger/editor latency measurements
   are needed for broader performance comparisons.
+
+## Redot 26.3 editor shutdown (temporary)
+
+The pinned official 26.3 engine can emit seven shutdown leak diagnostics during
+headless editor import, and on Windows can instead exit with `0xC0000005` after
+import completes. The same issue occurs without this extension. The narrow
+allowlist is `scripts/temporary_redot_263_import.json`; remove it and its gate
+when a fixed 26.3 engine is pinned. It accepts only the exact seven lines and
+counts, plus the exact shutdown crash marker with that Windows access-violation
+exit. Fresh expected extension/class caches, all imported SVG textures, and an
+import completion marker must exist before any tolerance applies. Editor
+regression runs additionally require their complete successful 23-check result.
+
+This exception applies only to the exact pinned 26.3 editor-import process.
+Unexpected diagnostics, incomplete import, timeouts, other exits, 26.2
+diagnostics, and all runtime diagnostics fail. The runtime fixture that follows
+must pass cleanly. A tolerated import is recorded as such with its actual exit;
+it is not evidence of a leak-free or crash-free editor lifecycle.
+
+## Struct authoring
+
+26.3 offers Struct in BBVariant and blackboard type menus and creates an empty
+Struct through the engine constructor interface. The native Struct inspector
+can edit fields of an existing value. Defining a custom layout and field names
+requires 26.3 script; selecting the type does not invent a schema. Struct values
+and syntax cannot be brought back to 26.2. No typed Struct C++ wrapper or other
+26.3-only API is added to the locked binding.

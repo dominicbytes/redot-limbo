@@ -1,0 +1,18 @@
+{
+  "comment": "TEMPORARY: remove this file and tolerance when a fixed Redot 26.3 engine is pinned. Applies only to editor import, never runtime or 26.2.",
+  "engine_version": "26.3.stable.official.85e520394",
+  "diagnostics": [
+    "WARNING: 2 RIDs of type \"Canvas\" were leaked.",
+    "WARNING: 29 RIDs of type \"CanvasItem\" were leaked.",
+    "ERROR: 2 RID allocations of type 'N16RendererViewport8ViewportE' were leaked at exit.",
+    "ERROR: 14 RID allocations of type 'PN13RendererDummy14TextureStorage12DummyTextureE' were leaked at exit.",
+    "ERROR: 100 RID allocations of type 'PN18TextServerAdvanced22ShapedTextDataAdvancedE' were leaked at exit.",
+    "ERROR: 1 RID allocations of type 'PN18TextServerAdvanced12FontAdvancedE' were leaked at exit.",
+    "WARNING: ObjectDB instances leaked at exit (run with --verbose for details)."
+  ],
+  "crash_marker": "CrashHandlerException: Program crashed with signal 11",
+  "crash_exit_codes": [
+    3221225477,
+    -1073741819
+  ]
+}
