@@ -14,13 +14,13 @@
 		<method name="_enter" qualifiers="virtual">
 			<return type="void" />
 			<description>
-				Called when the state is entered.
+				Called when the state is entered, after processing has been enabled. If this callback exits or deactivates the state, processing remains disabled.
 			</description>
 		</method>
 		<method name="_exit" qualifiers="virtual">
 			<return type="void" />
 			<description>
-				Called when the state is exited. This happens on a transition to another state, and when the state machine is removed from the scene tree (e.g., when the node is freed with [method Node.queue_free] or the scene changes). Due to implementation details, [method _exit] will not be called on [method Object.free]!
+				Called when the state is exited. The state is already inactive during this callback. This happens on a transition to another state, and when the state machine is removed from the scene tree (e.g., when the node is freed with [method Node.queue_free] or the scene changes). Due to implementation details, [method _exit] will not be called on [method Object.free]!
 			</description>
 		</method>
 		<method name="_setup" qualifiers="virtual">
@@ -99,7 +99,7 @@
 		<method name="is_active" qualifiers="const">
 			<return type="bool" />
 			<description>
-				Returns [code]true[/code] if it is currently active, meaning it is the active substate of the parent [LimboHSM].
+				Returns [code]true[/code] if it is currently active, meaning it is the active substate of the parent [LimboHSM]. The state becomes inactive before its exit callback and [signal exited] signal; see [method _exit].
 			</description>
 		</method>
 		<method name="named">
@@ -119,7 +119,7 @@
 		<method name="restart">
 			<return type="void" />
 			<description>
-				If it's active, exit and enter again.
+				If it's active, exit and enter again. A child state restarts through its parent [LimboHSM]'s same-state transition, so exit-time deactivation or an ancestor transition can cancel reentry. Restarting a machine while it is exiting a state is rejected with an error. Restarting the root machine exits it and enters its initial state again.
 			</description>
 		</method>
 		<method name="set_guard">
@@ -127,6 +127,7 @@
 			<param index="0" name="guard_callable" type="Callable" />
 			<description>
 				Sets the guard function, which is a function called each time a transition to this state is considered. If the function returns [code]false[/code], the transition will be disallowed.
+				If the guard receiver is freed, transitions into this state are rejected with an error until a valid guard is set or [method clear_guard] is called.
 			</description>
 		</method>
 	</methods>

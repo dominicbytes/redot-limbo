@@ -24,6 +24,7 @@ VARIANT_ENUM_CAST(LimboHSM::UpdateMode);
 
 void LimboHSM::set_active(bool p_active) {
 	ERR_FAIL_COND_MSG(agent == nullptr, "LimboHSM is not initialized.");
+	ERR_FAIL_COND_MSG(p_active && exiting_state, "LimboHSM: Unable to activate while exiting a state.");
 	ERR_FAIL_COND_MSG(p_active && initial_state == nullptr, "LimboHSM has no initial substate candidate.");
 	ERR_FAIL_COND_MSG(!is_root(), "LimboHSM.set_active() should only be called on the root state.");
 
@@ -31,10 +32,9 @@ void LimboHSM::set_active(bool p_active) {
 		return;
 	}
 
-	active = p_active;
 	is_initiating_update = p_active;
 
-	if (active) {
+	if (p_active) {
 		_enter();
 	} else {
 		_exit();
@@ -42,21 +42,36 @@ void LimboHSM::set_active(bool p_active) {
 }
 
 void LimboHSM::change_active_state(LimboState *p_state) {
+	ERR_FAIL_COND_MSG(exiting_state, "LimboHSM: Unable to change active state while exiting a state.");
 	ERR_FAIL_NULL(p_state);
 	ERR_FAIL_COND_MSG(!is_active(), "LimboHSM: Unable to change active state when HSM is not active.");
 	ERR_FAIL_COND_MSG(p_state->get_parent() != this, "LimboHSM: Unable to perform transition to a state that is not a child of this HSM.");
 
 	if (active_state) {
-		active_state->_exit();
 		previous_active = active_state;
+		exiting_state = true;
+		active_state->_exit();
+		exiting_state = false;
+	}
+	if (!is_active()) {
+		p_state->_clear_cargo();
+		return;
 	}
 
+	const uint64_t sequence = ++activation_sequence;
+	const ObjectID entered_id = ObjectID(p_state->get_instance_id());
 	active_state = p_state;
 	active_state->_enter();
 
-	emit_signal(LW_NAME(active_state_changed), active_state, previous_active);
+	LimboState *entered = Object::cast_to<LimboState>(ObjectDB::get_instance(entered_id));
+	if (sequence == activation_sequence && is_active() && entered != nullptr && active_state == entered) {
+		emit_signal(LW_NAME(active_state_changed), active_state, previous_active);
+	}
 
-	active_state->_clear_cargo();
+	entered = Object::cast_to<LimboState>(ObjectDB::get_instance(entered_id));
+	if (entered != nullptr) {
+		entered->_clear_cargo();
+	}
 }
 
 void LimboHSM::_enter() {
@@ -65,14 +80,20 @@ void LimboHSM::_enter() {
 	ERR_FAIL_COND_MSG(initial_state == nullptr, "LimboHSM: Initial state is not set.");
 
 	LimboState::_enter();
-	change_active_state(initial_state);
+	if (is_active()) {
+		change_active_state(initial_state);
+	}
 }
 
 void LimboHSM::_exit() {
-	ERR_FAIL_COND(active_state == nullptr);
-	active_state->_exit();
+	const bool was_exiting = exiting_state;
+	exiting_state = true;
+	if (!was_exiting && active_state) {
+		active_state->_exit();
+	}
 	active_state = nullptr;
 	LimboState::_exit();
+	exiting_state = was_exiting;
 }
 
 void LimboHSM::_update(double p_delta) {
@@ -123,6 +144,7 @@ void LimboHSM::remove_transition(LimboState *p_from_state, const StringName &p_e
 }
 
 void LimboHSM::_get_transition(LimboState *p_from_state, const StringName &p_event, Transition &r_transition) const {
+	r_transition = Transition();
 	ERR_FAIL_COND_MSG(p_from_state != nullptr && p_from_state->get_parent() != this, "LimboHSM: Unable to get a transition from a state that is not an immediate child of this HSM.");
 	ERR_FAIL_COND_MSG(p_event == StringName(), "LimboHSM: Unable to get a transition with an empty event string.");
 
@@ -151,6 +173,9 @@ void LimboHSM::set_initial_state(LimboState *p_state) {
 
 bool LimboHSM::_dispatch(const StringName &p_event, const Variant &p_cargo) {
 	ERR_FAIL_COND_V(p_event == StringName(), false);
+	if (exiting_state) {
+		return false;
+	}
 
 	bool event_consumed = false;
 
@@ -183,7 +208,8 @@ bool LimboHSM::_dispatch(const StringName &p_event, const Variant &p_cargo) {
 		}
 		if (to_state != nullptr) {
 			bool permitted = true;
-			if (to_state->guard_callable.is_valid()) {
+			if (!to_state->guard_callable.is_null()) {
+				ERR_FAIL_COND_V_MSG(!to_state->guard_callable.is_valid(), false, "LimboHSM: State guard callable is no longer valid.");
 				Variant ret;
 
 #ifdef LIMBOAI_MODULE

@@ -27,6 +27,8 @@ public:
 	};
 
 private:
+	friend LimboState;
+
 	struct TransitionKeyHasher {
 		static uint32_t hash(const TransitionKey &P) {
 			uint64_t h1 = HashMapHasherDefault::hash(P.first);
@@ -57,6 +59,8 @@ private:
 	LimboState *active_state;
 	LimboState *previous_active;
 	LimboState *next_active;
+	uint64_t activation_sequence = 0;
+	bool exiting_state = false;
 	bool updating = false;
 	bool was_active = false;
 	bool is_initiating_update = false;
