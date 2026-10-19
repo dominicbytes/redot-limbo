@@ -75,8 +75,17 @@ void BTPlayer::_initialize_bt() {
 	Node *scene_root = _get_scene_root();
 	ERR_FAIL_COND_MSG(scene_root == nullptr,
 			"BTPlayer: Initialization failed - unable to establish scene root. This is likely due to BTPlayer not being owned by a scene node. Check BTPlayer.set_scene_root_hint().");
-	bt_instance = behavior_tree->instantiate(agent, blackboard, this, scene_root);
-	ERR_FAIL_COND_MSG(bt_instance.is_null(), "BTPlayer: Failed to instantiate behavior tree.");
+	const uint64_t generation = instance_change_generation;
+	const Ref<BehaviorTree> tree = behavior_tree;
+	Ref<BTInstance> instance = tree->instantiate(agent, blackboard, this, scene_root);
+	if (generation != instance_change_generation) {
+		if (instance.is_valid()) {
+			instance->get_root_task()->abort();
+		}
+		return;
+	}
+	ERR_FAIL_COND_MSG(instance.is_null(), "BTPlayer: Failed to instantiate behavior tree.");
+	bt_instance = instance;
 #ifdef DEBUG_ENABLED
 	bt_instance->set_monitor_performance(monitor_performance);
 	bt_instance->register_with_debugger();

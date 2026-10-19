@@ -3,6 +3,13 @@ extends RefCounted
 const Action := preload("res://tasks/callback_action.gd")
 
 
+class SetupReplacement extends BTAction:
+	static var callback: Callable
+
+	func _setup() -> void:
+		callback.call()
+
+
 static func run(fixture: SceneTree) -> void:
 	var host := Node.new()
 	fixture.root.add_child(host)
@@ -64,4 +71,22 @@ static func run(fixture: SceneTree) -> void:
 	player.behavior_tree = null
 	passed = passed and player.get_bt_instance() == null and explicit_root.status == BT.FRESH and explicit_root.exits == 1
 	fixture._record_case("player_tree_replacement_cleanup", passed, {})
+	_test_setup_replacement(fixture, host, player)
 	host.free()
+
+
+static func _test_setup_replacement(fixture: SceneTree, host: Node, player: BTPlayer) -> void:
+	var passed := true
+	for explicit_instance: bool in [false, true]:
+		player.behavior_tree = null
+		var chosen := BehaviorTree.new()
+		chosen.root_task = BTFail.new()
+		var requested := BehaviorTree.new()
+		requested.root_task = SetupReplacement.new()
+		var instance: BTInstance = chosen.instantiate(host, Blackboard.new(), host, host)
+		SetupReplacement.callback = player.set_bt_instance.bind(instance) if explicit_instance else player.set_behavior_tree.bind(chosen)
+		player.behavior_tree = requested
+		passed = passed and player.get_bt_instance().get_root_task() is BTFail and player.get_bt_instance().update(0.016) == BT.FAILURE
+		passed = passed and (player.get_bt_instance() == instance if explicit_instance else player.behavior_tree == chosen)
+		SetupReplacement.callback = Callable()
+	fixture._record_case("player_setup_replacement", passed, {})
