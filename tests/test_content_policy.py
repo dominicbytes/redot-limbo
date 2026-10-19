@@ -89,6 +89,11 @@ class ContentPolicyTests(unittest.TestCase):
         for text in ("COMPATIBILITY.md", "docs/build.md", "A preflight check precedes the handoff."):
             self.assertEqual(policy.scan_blob("README.md", text.encode()), [])
 
+    def test_xml_attribute_delimiters_are_not_quoted_paths(self):
+        text = '<path d="m0 0h16v16h-16z" fill="none"/><g fill="#8eef97"><path d="m3 1"/></g>'
+        self.assertEqual(policy.scan_blob("icon.svg", text.encode()), [])
+        self.assertEqual(policy.sanitize_text(text), text)
+
     def test_private_key_header_variants_and_nested_archive_members(self):
         for kind in ("", "RSA ", "EC ", "OPENSSH ", "ENCRYPTED ", "DSA "):
             secret = "-----BEGIN " + kind + "PRIVATE KEY-----"

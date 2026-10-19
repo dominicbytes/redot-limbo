@@ -24,7 +24,7 @@ PATH_PATTERNS = (
     ("home-or-mount-root", re.compile(r"(?<![\w\x3a/\\.])/(?:home|Users|mnt|media|Volumes|workspace|workspaces|tmp)(?=[/\s\x00\"']|$)(?:/[^\s\x00\"'<>|(),;:]*)?", re.I)),
 )
 ABSOLUTE_START = r"(?:[A-Za-z]:[\\/]|/(?!/)|\\\\|//)"
-QUOTED_PATH = re.compile(r"(?P<quote>[\"'])(?P<path>" + ABSOLUTE_START + r"[^\r\n\x00]*?)(?P=quote)")
+QUOTED_PATH = re.compile(r"(?P<quote>[\"'])(?P<path>" + ABSOLUTE_START + r"[^\r\n\x00<>|]*?)(?P=quote)")
 DIAGNOSTIC_PATH = re.compile(
     r"(?<![\w\x3a/\\])(?P<path>" + ABSOLUTE_START + r"[^\r\n\x00\"'<>|]*?)"
     r"(?=\(\d+(?:,\d+)?\):|:\d+(?::\d+)?:)"
@@ -32,7 +32,7 @@ DIAGNOSTIC_PATH = re.compile(
 COMPILER_PATH = re.compile(
     r"(?<!\w)(?:-isystem|-iquote|-I|-L|/I|/Fo|/Fd|-Wl,-rpath,|--sysroot=|@)"
     r"(?P<quote>[\"'])?(?P<path>" + ABSOLUTE_START
-    + r"(?(quote)[^\r\n\x00]*?|[^\s\x00\"'<>|(),;:]*))(?(quote)(?P=quote))"
+    + r"(?(quote)[^\r\n\x00<>|]*?|[^\s\x00\"'<>|(),;:]*))(?(quote)(?P=quote))"
 )
 
 
