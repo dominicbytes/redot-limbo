@@ -1,12 +1,13 @@
 LimboAI Documentation
 =====================
 
-**LimboAI** is an open-source C++ module for **Godot Engine 4** providing a combination of
-**Behavior Trees** and **State Machines** for crafting your game’s AI. It comes with a
-behavior tree editor, built-in documentation, visual debugger, and more! While
-it is implemented in C++, it fully supports GDScript for :ref:`creating your own tasks <custom_tasks>`
-and states. The full list of features is available on the
-`LimboAI GitHub <https://github.com/limbonaut/limboai#features>`_ page.
+**Redot LimboAI** is a desktop GDExtension port of the **LimboAI 1.8.0**
+source baseline for **Redot 26.2**, combining **Behavior Trees** and
+**State Machines** with an editor and visual debugger. Use typed GDScript for
+:ref:`creating your own tasks <custom_tasks>` and states. Start with
+:doc:`getting-started/getting-limboai` for the pinned installation contract.
+The API tutorials remain applicable; upstream Godot engine-module, AssetLib,
+and .NET instructions do not describe supported installation routes for this fork.
 
 .. SCREENSHOT
 
@@ -25,7 +26,6 @@ one big state machine into multiple smaller ones.
    :caption: Getting started
 
    getting-started/getting-limboai
-   getting-started/c-sharp
    getting-started/contributing
 
 .. toctree::
