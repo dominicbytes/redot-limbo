@@ -45,6 +45,12 @@ BT::Status BTForEach::_tick(double p_delta) {
 
 	Array arr = get_blackboard()->get_var(array_var, Variant());
 	if (current_idx >= arr.size()) {
+		if (get_child(0)->get_status() == RUNNING) {
+			get_child(0)->abort();
+			if (_is_execution_cancelled()) {
+				return FRESH;
+			}
+		}
 		if (current_idx != 0) {
 			WARN_PRINT("BTForEach: Array size changed during iteration.");
 		}
