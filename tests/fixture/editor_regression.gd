@@ -38,6 +38,7 @@ func _run() -> void:
 	if editor != null:
 		_test_cross_tab_undo(editor)
 		await _test_search(editor)
+		_test_clear_view()
 	# Flush deferred selection and queued control deletion before editor shutdown.
 	for _frame: int in range(3):
 		await get_tree().process_frame
@@ -160,3 +161,34 @@ func _test_search(editor: Node) -> void:
 	panel.emit_signal("text_submitted")
 	_check(tree.get_selected() != null and tree.get_selected().get_metadata(0) == wait_task,
 		"restoring root rebuilds cached matches")
+
+
+func _test_clear_view() -> void:
+	var model: BehaviorTree = BehaviorTree.new()
+	model.root_task = BTWait.new()
+	var instance: BTInstance = model.instantiate(self, Blackboard.new(), self, self)
+	var data: BehaviorTreeData = BehaviorTreeData.create_from_bt_instance(instance)
+	var view: BehaviorTreeView = BehaviorTreeView.new()
+	add_child(view)
+	view.update_tree(data)
+	view.update_interval_msec = 1000000000
+	view.update_tree(data)
+	var retained_data: WeakRef = weakref(data)
+	data = null
+	view.clear()
+	var display: Tree = _find_class(view, "Tree") as Tree
+	_check(display.get_root() == null, "clear removes debugger rows")
+	_check(retained_data.get_ref() == null, "clear releases pending snapshot")
+	view.update_interval_msec = 0
+	view.notification(Node.NOTIFICATION_PROCESS)
+	_check(display.get_root() == null, "processing after clear cannot resurrect snapshot")
+	model.root_task = BTFail.new()
+	var fresh_instance: BTInstance = model.instantiate(self, Blackboard.new(), self, self)
+	view.update_tree(BehaviorTreeData.create_from_bt_instance(fresh_instance))
+	_check(display.get_root() != null and display.get_root().get_text(0).contains("Fail"),
+		"fresh snapshot renders after clear")
+	view.clear()
+	view.clear()
+	view.notification(Node.NOTIFICATION_PROCESS)
+	_check(display.get_root() == null, "repeated clear remains empty")
+	view.queue_free()

@@ -242,6 +242,8 @@ uint64_t BehaviorTreeView::get_selected_task_id() const {
 }
 
 void BehaviorTreeView::clear() {
+	update_pending = false;
+	update_data.unref();
 	tree->clear();
 	collapsed_ids.clear();
 	last_root_id = 0;
