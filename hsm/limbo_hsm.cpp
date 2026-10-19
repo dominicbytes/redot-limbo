@@ -24,6 +24,7 @@ VARIANT_ENUM_CAST(LimboHSM::UpdateMode);
 
 void LimboHSM::set_active(bool p_active) {
 	ERR_FAIL_COND_MSG(agent == nullptr, "LimboHSM is not initialized.");
+	ERR_FAIL_COND_MSG(p_active && exiting_state, "LimboHSM: Unable to activate while exiting a state.");
 	ERR_FAIL_COND_MSG(p_active && initial_state == nullptr, "LimboHSM has no initial substate candidate.");
 	ERR_FAIL_COND_MSG(!is_root(), "LimboHSM.set_active() should only be called on the root state.");
 
@@ -41,13 +42,20 @@ void LimboHSM::set_active(bool p_active) {
 }
 
 void LimboHSM::change_active_state(LimboState *p_state) {
+	ERR_FAIL_COND_MSG(exiting_state, "LimboHSM: Unable to change active state while exiting a state.");
 	ERR_FAIL_NULL(p_state);
 	ERR_FAIL_COND_MSG(!is_active(), "LimboHSM: Unable to change active state when HSM is not active.");
 	ERR_FAIL_COND_MSG(p_state->get_parent() != this, "LimboHSM: Unable to perform transition to a state that is not a child of this HSM.");
 
 	if (active_state) {
-		active_state->_exit();
 		previous_active = active_state;
+		exiting_state = true;
+		active_state->_exit();
+		exiting_state = false;
+	}
+	if (!is_active()) {
+		p_state->_clear_cargo();
+		return;
 	}
 
 	const uint64_t sequence = ++activation_sequence;
@@ -72,14 +80,20 @@ void LimboHSM::_enter() {
 	ERR_FAIL_COND_MSG(initial_state == nullptr, "LimboHSM: Initial state is not set.");
 
 	LimboState::_enter();
-	change_active_state(initial_state);
+	if (is_active()) {
+		change_active_state(initial_state);
+	}
 }
 
 void LimboHSM::_exit() {
-	ERR_FAIL_COND(active_state == nullptr);
-	active_state->_exit();
+	const bool was_exiting = exiting_state;
+	exiting_state = true;
+	if (!was_exiting && active_state) {
+		active_state->_exit();
+	}
 	active_state = nullptr;
 	LimboState::_exit();
+	exiting_state = was_exiting;
 }
 
 void LimboHSM::_update(double p_delta) {
@@ -158,6 +172,9 @@ void LimboHSM::set_initial_state(LimboState *p_state) {
 
 bool LimboHSM::_dispatch(const StringName &p_event, const Variant &p_cargo) {
 	ERR_FAIL_COND_V(p_event == StringName(), false);
+	if (exiting_state) {
+		return false;
+	}
 
 	bool event_consumed = false;
 

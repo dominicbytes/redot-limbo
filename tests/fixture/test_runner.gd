@@ -55,6 +55,7 @@ func _run() -> void:
 	_test_blackboard_contract()
 	_test_blackboard_runtime_inspection()
 	_test_hsm_transition_completion()
+	_test_hsm_exit_transaction()
 	var tree: BehaviorTree = _test_resource_roundtrip()
 	if tree != null:
 		_test_direct_tree_execution(tree)
@@ -625,3 +626,69 @@ func _test_hsm_transition_completion() -> void:
 		hsm.set_active(false)
 		host.free()
 	_record_case("hsm_transition_completion", passed, {"observations": observations})
+
+
+func _test_hsm_exit_transaction() -> void:
+	var passed := true
+	var observations: Array[Dictionary] = []
+	for mode: String in ["dispatch", "direct", "stop", "finished"]:
+		var host := Node.new()
+		root.add_child(host)
+		var hsm := LimboHSM.new()
+		hsm.update_mode = LimboHSM.MANUAL
+		host.add_child(hsm)
+		var a := BTState.new()
+		var tree := BehaviorTree.new()
+		var task := StatusAction.new()
+		task.result = BT.RUNNING
+		tree.root_task = task
+		a.behavior_tree = tree
+		a.set_scene_root_hint(host)
+		var b := LimboState.new()
+		var c := BTState.new()
+		c.behavior_tree = tree
+		c.set_scene_root_hint(host)
+		hsm.add_child(a)
+		hsm.add_child(b)
+		hsm.add_child(c)
+		hsm.add_transition(a, b, &"go")
+		hsm.add_transition(a, c, &"next")
+		hsm.initialize(host)
+		hsm.set_active(true)
+		hsm.update(FIXED_DELTA)
+		var running_task := a.get_bt_instance().get_root_task() as StatusAction
+		var exits: Array[int] = []
+		var entries: Array[int] = []
+		var nested_results: Array[bool] = []
+		c.entered.connect(func() -> void: entries.append(1))
+		a.exited.connect(func() -> void:
+			exits.append(1)
+			# Bound the old recursive behavior so this regression cannot loop forever.
+			if exits.size() != 1:
+				return
+			if mode == "dispatch":
+				nested_results.append(hsm.dispatch(&"next", 22))
+			elif mode == "direct":
+				var print_errors: bool = Engine.print_error_messages
+				Engine.print_error_messages = false
+				hsm.change_active_state(c)
+				Engine.print_error_messages = print_errors
+			elif mode == "stop":
+				hsm.set_active(false)
+			else:
+				nested_results.append(hsm.dispatch(hsm.event_finished()))
+		)
+		hsm.dispatch(&"go", 11)
+		var mode_passed: bool = exits.size() == 1 and entries.is_empty() and not a.is_active() and not c.is_active() and not c.is_processing() and c.get_cargo() == null
+		mode_passed = mode_passed and running_task.status == BT.FRESH and running_task.entries == 1 and running_task.exits == 1
+		if mode == "stop":
+			mode_passed = mode_passed and not hsm.is_active() and hsm.get_active_state() == null and not b.is_active() and b.get_cargo() == null
+		else:
+			mode_passed = mode_passed and hsm.get_active_state() == b and b.is_active() and hsm.get_previous_active_state() == a
+			if mode != "direct":
+				mode_passed = mode_passed and nested_results == [false]
+		passed = passed and mode_passed
+		observations.append({"mode": mode, "passed": mode_passed, "exits": exits.size(), "nested_results": nested_results})
+		hsm.set_active(false)
+		host.free()
+	_record_case("hsm_exit_transaction", passed, {"observations": observations})

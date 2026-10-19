@@ -242,6 +242,16 @@ TEST_CASE("[Modules][LimboAI] HSM") {
 		CHECK(state_alpha->get_cargo() == Variant());
 		CHECK_FALSE(state_beta->is_processing());
 	}
+	SUBCASE("Test dispatch() during exit is rejected") {
+		state_alpha->connect("exited",
+				callable_mp_static(_on_enter_dispatch).bind(state_alpha, "goto_nested"), Object::CONNECT_ONE_SHOT);
+		CHECK(hsm->dispatch("event_one"));
+		CHECK(hsm->get_active_state() == state_beta);
+		CHECK(alpha_exits->num_callbacks == 1);
+		CHECK(beta_entries->num_callbacks == 1);
+		CHECK(nested_entries->num_callbacks == 0);
+		CHECK_FALSE(nested_hsm->is_active());
+	}
 	SUBCASE("Test get_cargo() inside and outside _enter()") {
 		const int DATA = 25;
 		Variant cargo = DATA;

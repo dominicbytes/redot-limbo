@@ -5,6 +5,7 @@
 	</brief_description>
 	<description>
 		Event-based Hierarchical State Machine (HSM) that manages [LimboState] instances and facilitates transitions between them. LimboHSM is a [LimboState] in itself and can also serve as a child of another LimboHSM node.
+		While this machine is exiting a state, event dispatch returns [code]false[/code] without invoking handlers or transitions. Direct calls to [method change_active_state] and attempts to reactivate the machine during exit are rejected with an error. Deactivation during exit cancels the pending transition. Events dispatched during entry are processed synchronously as usual.
 	</description>
 	<tutorials>
 	</tutorials>

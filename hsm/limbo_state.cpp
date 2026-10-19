@@ -92,13 +92,13 @@ void LimboState::_exit() {
 	if (!active) {
 		return;
 	}
+	active = false;
 	GDVIRTUAL_CALL(_exit);
 	emit_signal(LW_NAME(exited));
 	set_process(false);
 	set_physics_process(false);
 	set_process_input(false);
 	set_process_unhandled_input(false);
-	active = false;
 }
 
 void LimboState::_update(double p_delta) {
