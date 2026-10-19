@@ -1,0 +1,16 @@
+--- a/src/variant/variant.cpp
++++ b/src/variant/variant.cpp
+@@ -785,9 +785,12 @@
+ 		true, // PACKED_VECTOR2_ARRAY,
+ 		true, // PACKED_VECTOR3_ARRAY,
+ 		true, // PACKED_COLOR_ARRAY,
++		true, // PACKED_VECTOR4_ARRAY,
+ 	};
+ 
+-	if (unlikely(needs_deinit[get_type()])) { // Make it fast for types that don't need deinit.
++	const uint32_t type = static_cast<uint32_t>(get_type());
++	// Newer engines may return types absent from this binding. Let the engine destroy them.
++	if (unlikely(type >= VARIANT_MAX || needs_deinit[type])) {
+ 		internal::gdextension_interface_variant_destroy(_native_ptr());
+ 	}
+ 	internal::gdextension_interface_variant_new_nil(_native_ptr());
