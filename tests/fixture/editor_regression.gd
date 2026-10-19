@@ -37,6 +37,7 @@ func _run() -> void:
 	_check(editor != null, "native editor is available")
 	if editor != null:
 		_test_cross_tab_undo(editor)
+		await _test_search(editor)
 	# Flush deferred selection and queued control deletion before editor shutdown.
 	for _frame: int in range(3):
 		await get_tree().process_frame
@@ -91,3 +92,71 @@ func _test_cross_tab_undo(editor: Node) -> void:
 	_check(b.root_task == other_root and other_root.get_child(0) == other_child,
 		"other tree remains intact after undo and redo")
 	history.clear_history()
+
+
+func _set_query(panel: Control, text: String) -> void:
+	var input: LineEdit = _find_class(panel, "LineEdit") as LineEdit
+	input.text = text
+	panel.emit_signal("update_requested")
+
+
+func _navigate_empty(panel: Control, tree: Tree, label: String) -> void:
+	panel.emit_signal("text_submitted")
+	panel.emit_signal("select_previous_match")
+	_check(tree.get_root() == null and tree.get_selected() == null, label)
+
+
+func _test_search(editor: Node) -> void:
+	var model: BehaviorTree = BehaviorTree.new()
+	var sequence: BTSequence = BTSequence.new()
+	var wait_task: BTWait = BTWait.new()
+	sequence.add_child(wait_task)
+	sequence.add_child(BTFail.new())
+	model.root_task = sequence
+	model.take_over_path("res://editor_search.tres")
+	editor.call("edit_bt", model, true)
+	var task_tree: Node = _find_class(editor, "TaskTree")
+	var panel: Control = _find_class(task_tree, "TreeSearchPanel") as Control
+	var tree: Tree = _find_class(task_tree, "Tree") as Tree
+	var filter: CheckBox = _find_class(panel, "CheckBox") as CheckBox
+	panel.show()
+	filter.button_pressed = true
+	_set_query(panel, "no_such_task")
+	_check(not tree.get_root().is_visible_in_tree(), "fresh zero-match filter hides root")
+	_set_query(panel, "Wait")
+	_check(tree.get_root().get_child(0).visible and not tree.get_root().get_child(1).visible,
+		"filter shows only matching branch")
+	_set_query(panel, "no_such_task")
+	_check(not tree.get_root().get_child(0).visible and not tree.get_root().get_child(1).visible,
+		"zero-match filter hides previous results")
+	_set_query(panel, "")
+	_check(tree.get_root().visible and tree.get_root().get_child(0).visible
+		and tree.get_root().get_child(1).visible, "clearing query restores all rows")
+	_set_query(panel, "Wait")
+	var empty: BehaviorTree = BehaviorTree.new()
+	empty.take_over_path("res://editor_search_empty.tres")
+	editor.call("edit_bt", empty, true)
+	panel.show()
+	_navigate_empty(panel, tree, "switching to empty tree invalidates navigation")
+	_set_query(panel, "Wait")
+	_navigate_empty(panel, tree, "searching empty tree keeps navigation safe")
+	editor.call("edit_bt", model, true)
+	panel.show()
+	_set_query(panel, "Wait")
+	panel.emit_signal("text_submitted")
+	_check(tree.get_selected() != null and tree.get_selected().get_metadata(0) == wait_task,
+		"loading populated tree rebuilds search navigation")
+	panel.emit_signal("select_previous_match")
+	_check(tree.get_selected().get_metadata(0) == wait_task, "previous match wraps correctly")
+	model.root_task = null
+	task_tree.call("update_tree")
+	for _frame: int in range(3):
+		await get_tree().process_frame
+	_navigate_empty(panel, tree, "deleting root invalidates search without another query")
+	model.root_task = sequence
+	task_tree.call("update_tree")
+	for _frame: int in range(3):
+		await get_tree().process_frame
+	panel.emit_signal("text_submitted")
+	_check(tree.get_selected() != null and tree.get_selected().get_metadata(0) == wait_task,
+		"restoring root rebuilds cached matches")

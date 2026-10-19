@@ -125,6 +125,7 @@ void TaskTree::_update_tree() {
 	Vector<Ref<BTTask>> selection = get_selected_tasks();
 
 	tree->clear();
+	tree_search->update_search(tree);
 	RenderingServer::get_singleton()->canvas_item_clear(overlay_ci);
 	if (bt.is_null()) {
 		return;
@@ -180,6 +181,9 @@ void TaskTree::_on_item_selected() {
 		}
 	}
 	last_selected = get_selected();
+	if (last_selected.is_null()) {
+		return;
+	}
 	last_selected->connect(LW_NAME(changed), on_task_changed);
 	emit_signal(LW_NAME(task_selected), last_selected);
 }
@@ -263,6 +267,7 @@ void TaskTree::unload() {
 
 	bt.unref();
 	tree->clear();
+	tree_search->update_search(tree);
 	RenderingServer::get_singleton()->canvas_item_clear(overlay_ci);
 }
 
