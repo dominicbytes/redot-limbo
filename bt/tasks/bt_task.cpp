@@ -195,7 +195,16 @@ Node *BTTask::get_scene_root() const {
 }
 
 bool BTTask::_has_valid_context() const {
-	return !data.initialized || (get_agent() != nullptr && get_scene_root() != nullptr);
+	if (!data.initialized) {
+		return true;
+	}
+#ifdef LIMBOAI_GDEXTENSION
+	// Initialization accepts Nodes only. Existence checks need no instance binding or cast.
+	return internal::gdextension_interface_object_get_instance_from_id(data.agent_id) != nullptr &&
+			internal::gdextension_interface_object_get_instance_from_id(data.scene_root_id) != nullptr;
+#else
+	return ObjectDB::get_instance(data.agent_id) != nullptr && ObjectDB::get_instance(data.scene_root_id) != nullptr;
+#endif
 }
 
 void BTTask::initialize(Node *p_agent, const Ref<Blackboard> &p_blackboard, Node *p_scene_root) {
@@ -251,12 +260,12 @@ BT::Status BTTask::execute(double p_delta) {
 	}
 	data.executing = true;
 	data.execution_generation = data.abort_generation;
-	auto finish = [this](Status p_status) {
+	auto finish = [this](Status p_status, bool p_check_context = true) {
 		if (_is_execution_cancelled()) {
 			data.executing = false;
 			return FRESH;
 		}
-		if (!_has_valid_context()) {
+		if (p_check_context && !_has_valid_context()) {
 			abort();
 			data.status = FAILURE;
 			data.executing = false;
@@ -293,7 +302,7 @@ BT::Status BTTask::execute(double p_delta) {
 		data.elapsed += p_delta;
 	}
 
-	if (!_has_valid_context()) {
+	if (data.status != RUNNING && !_has_valid_context()) {
 		return finish(FAILURE);
 	}
 	Status next_status = FRESH;
@@ -315,7 +324,7 @@ BT::Status BTTask::execute(double p_delta) {
 		_exit();
 		data.elapsed = 0.0;
 	}
-	return finish(data.status);
+	return finish(data.status, data.status != RUNNING);
 }
 
 void BTTask::abort() {
