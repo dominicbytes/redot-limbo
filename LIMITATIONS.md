@@ -40,17 +40,22 @@ The pinned official 26.3 engine can emit seven shutdown leak diagnostics during
 headless editor import, and on Windows can instead exit with `0xC0000005` after
 import completes. The same issue occurs without this extension. The narrow
 allowlist is `scripts/temporary_redot_263_import.json`; remove it and its gate
-when a fixed 26.3 engine is pinned. It accepts only the exact seven lines and
-counts, plus the exact shutdown crash marker with that Windows access-violation
-exit. Fresh expected extension/class caches, all imported SVG textures, and an
+when a fixed 26.3 engine is pinned. It accepts only anchored full-line matches
+for those same seven
+categories: any decimal allocation count in the six RID lines, with exact
+severity, type and suffix, and the exact ObjectDB line. Duplicate categories
+are rejected even when their counts differ. It also accepts the exact shutdown
+crash marker with that Windows access-violation exit. Fresh expected extension/class caches, all imported SVG textures, and an
 import completion marker must exist before any tolerance applies. Editor
-regression runs additionally require their complete successful 23-check result.
+regression runs additionally require the script's reported successful result,
+a positive check total and no failures.
 
 This exception applies only to the exact pinned 26.3 editor-import process.
 Unexpected diagnostics, incomplete import, timeouts, other exits, 26.2
 diagnostics, and all runtime diagnostics fail. The runtime fixture that follows
 must pass cleanly. A tolerated import is recorded as such with its actual exit;
-it is not evidence of a leak-free or crash-free editor lifecycle.
+the actual diagnostic lines, categories and allocation counts are also retained.
+It is not evidence of a leak-free or crash-free editor lifecycle.
 
 ## Struct authoring
 

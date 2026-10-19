@@ -49,10 +49,31 @@ def assess_import(code, output, timed_out, project, require_editor_regression=Fa
     crash = code in TEMPORARY["crash_exit_codes"] and TEMPORARY["crash_marker"] in suspicious
     # Preserve exact diagnostic lines, their counts, and the actual process exit.
     eligible = pinned and not timed_out and completed_import(project, output)
-    tolerated = [line for line in suspicious if eligible and
-                 (line in allowed or (crash and line == TEMPORARY["crash_marker"]))]
-    unexpected = [line for line in suspicious if line not in tolerated]
-    duplicate = any(suspicious.count(line) > 1 for line in tolerated)
+    tolerated = []
+    categories = []
+    unexpected = []
+    seen = set()
+    duplicate = False
+    for line in suspicious:
+        matched = False
+        if eligible:
+            for item in allowed:
+                match = re.fullmatch(item["pattern"], line)
+                if match is not None:
+                    category = item["category"]
+                    duplicate = duplicate or category in seen
+                    seen.add(category)
+                    tolerated.append(line)
+                    categories.append({"category": category, "line": line,
+                                       "count": int(match[1]) if match.lastindex else None})
+                    matched = True
+                    break
+            if crash and line == TEMPORARY["crash_marker"]:
+                duplicate = duplicate or line in tolerated
+                tolerated.append(line)
+                matched = True
+        if not matched:
+            unexpected.append(line)
     regression = None
     if require_editor_regression:
         records = [line.removeprefix("LIMBOAI_EDITOR_RESULT ") for line in output.splitlines()
@@ -69,5 +90,6 @@ def assess_import(code, output, timed_out, project, require_editor_regression=Fa
     passed = not timed_out and not unexpected and not duplicate and regression_ok and (
         code == 0 or (eligible and crash))
     return {"passed": passed, "temporary_tolerance": bool(tolerated) or (eligible and crash),
-            "tolerated_diagnostics": tolerated, "unexpected_diagnostics": unexpected,
+            "tolerated_diagnostics": tolerated, "tolerated_categories": categories,
+            "duplicate_categories": duplicate, "unexpected_diagnostics": unexpected,
             "editor_regression": regression}
