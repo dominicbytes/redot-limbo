@@ -34,5 +34,6 @@
   "blackboard_inherited_prefetch",
   "hsm_expired_state_guard",
   "hsm_restart_transaction",
-  "hsm_root_restart"
+  "hsm_root_restart",
+  "hsm_nested_exit_dispatch"
 ]

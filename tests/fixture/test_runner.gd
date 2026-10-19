@@ -60,6 +60,7 @@ func _run() -> void:
 	_test_hsm_exit_transaction()
 	_test_hsm_restart_transaction()
 	_test_hsm_root_restart()
+	_test_hsm_nested_exit_dispatch()
 	_test_hsm_guard_fallback()
 	_test_hsm_expired_state_guard()
 	var tree: BehaviorTree = _test_resource_roundtrip()
@@ -986,3 +987,52 @@ func _test_hsm_root_restart() -> void:
 		observations.append({"mode": mode, "passed": mode_passed, "counts": counts, "root_counts": root_counts})
 		host.free()
 	_record_case("hsm_root_restart", passed, {"observations": observations})
+
+
+func _test_hsm_nested_exit_dispatch() -> void:
+	var host := Node.new()
+	root.add_child(host)
+	var hsm := LimboHSM.new()
+	hsm.update_mode = LimboHSM.MANUAL
+	host.add_child(hsm)
+	var nested := LimboHSM.new()
+	var outside := LimboState.new()
+	hsm.add_child(nested)
+	hsm.add_child(outside)
+	var a := BTState.new()
+	var tree := BehaviorTree.new()
+	var task := StatusAction.new()
+	task.result = BT.RUNNING
+	tree.root_task = task
+	a.behavior_tree = tree
+	a.set_scene_root_hint(host)
+	var b := LimboState.new()
+	nested.add_child(a)
+	nested.add_child(b)
+	nested.add_transition(a, b, &"go")
+	hsm.add_transition(nested, outside, &"parent")
+	var local_handlers: Array[int] = []
+	nested.add_event_handler(&"parent", func() -> bool:
+		local_handlers.append(1)
+		return true
+	)
+	var exits: Array[int] = []
+	var results: Array[bool] = []
+	a.exited.connect(func() -> void:
+		exits.append(1)
+		if exits.size() == 1:
+			results.append(nested.dispatch(&"parent"))
+	)
+	hsm.initialize(host)
+	hsm.set_active(true)
+	hsm.update(FIXED_DELTA)
+	var running_task := a.get_bt_instance().get_root_task() as StatusAction
+	var consumed: bool = nested.dispatch(&"go", 11)
+	var passed: bool = consumed and results == [true] and local_handlers.is_empty() and exits.size() == 1
+	passed = passed and hsm.is_active() and hsm.get_active_state() == outside and outside.is_active()
+	passed = passed and not nested.is_active() and nested.get_active_state() == null and not a.is_active() and not b.is_active() and not a.is_processing() and not b.is_processing() and b.get_cargo() == null
+	passed = passed and running_task.status == BT.FRESH and running_task.entries == 1 and running_task.exits == 1
+	hsm.set_active(false)
+	passed = passed and hsm.get_active_state() == null and not outside.is_active() and exits.size() == 1
+	_record_case("hsm_nested_exit_dispatch", passed, {"consumed": consumed, "results": results, "local_handlers": local_handlers.size(), "exits": exits.size(), "task_exits": running_task.exits})
+	host.free()

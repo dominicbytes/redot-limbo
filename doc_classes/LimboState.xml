@@ -99,7 +99,7 @@
 		<method name="is_active" qualifiers="const">
 			<return type="bool" />
 			<description>
-				Returns [code]true[/code] if it is currently active, meaning it is the active substate of the parent [LimboHSM].
+				Returns [code]true[/code] if it is currently active, meaning it is the active substate of the parent [LimboHSM]. The state becomes inactive before its exit callback and [signal exited] signal; see [method _exit].
 			</description>
 		</method>
 		<method name="named">
