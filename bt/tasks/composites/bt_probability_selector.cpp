@@ -13,6 +13,12 @@
 
 #include "../../../compat/math.h"
 
+double BTProbabilitySelector::_get_weight(Ref<BTTask> p_task) const {
+	double weight = p_task->get_meta(LW_NAME(_weight_), 1.0);
+	ERR_FAIL_COND_V_MSG(!Math::is_finite(weight) || weight < 0.0, 0.0, "Probability weight must be finite and nonnegative.");
+	return weight;
+}
+
 double BTProbabilitySelector::get_weight(int p_index) const {
 	ERR_FAIL_INDEX_V(p_index, get_child_count(), 0.0);
 	ERR_FAIL_COND_V(!get_child(p_index)->is_enabled(), 0.0);
@@ -20,6 +26,7 @@ double BTProbabilitySelector::get_weight(int p_index) const {
 }
 
 void BTProbabilitySelector::set_weight(int p_index, double p_weight) {
+	ERR_FAIL_COND_MSG(!Math::is_finite(p_weight) || p_weight < 0.0, "Probability weight must be finite and nonnegative.");
 	ERR_FAIL_INDEX(p_index, get_child_count());
 	ERR_FAIL_COND(!get_child(p_index)->is_enabled());
 	_set_weight(p_index, p_weight);
@@ -34,16 +41,18 @@ double BTProbabilitySelector::get_probability(int p_index) const {
 
 void BTProbabilitySelector::set_probability(int p_index, double p_probability) {
 	ERR_FAIL_INDEX(p_index, get_child_count());
-	ERR_FAIL_COND(p_probability < 0.0);
+	ERR_FAIL_COND(!Math::is_finite(p_probability) || p_probability < 0.0);
 	ERR_FAIL_COND(p_probability >= 1.0);
 	ERR_FAIL_COND(!get_child(p_index)->is_enabled());
 
 	double others_total = _get_total_weight() - _get_weight(p_index);
+	ERR_FAIL_COND(!Math::is_finite(others_total) || others_total < 0.0);
 	double others_probability = 1.0 - p_probability;
 	if (others_total == 0.0) {
 		_set_weight(p_index, p_probability > 0.0 ? 1.0 : 0.0);
 	} else {
 		double new_total = others_total / others_probability;
+		ERR_FAIL_COND(!Math::is_finite(new_total));
 		_set_weight(p_index, new_total - others_total);
 	}
 }
@@ -100,6 +109,9 @@ void BTProbabilitySelector::_select_task() {
 		remaining_tasks_weight -= _get_weight(task);
 	}
 
+	if (remaining_tasks_weight <= 0.0) {
+		return;
+	}
 	double roll = RAND_RANGE(0.0, remaining_tasks_weight);
 	for (int i = 0; i < get_child_count(); i++) {
 		Ref<BTTask> task = get_child(i);

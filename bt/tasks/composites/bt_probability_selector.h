@@ -12,6 +12,7 @@
 #ifndef BT_PROBABILITY_SELECTOR_H
 #define BT_PROBABILITY_SELECTOR_H
 
+#include "../../../compat/math.h"
 #include "../../../util/limbo_string_names.h"
 #include "../bt_composite.h"
 
@@ -33,8 +34,8 @@ private:
 	bool abort_on_failure = false;
 
 	void _select_task();
-	_FORCE_INLINE_ double _get_weight(int p_index) const { return get_child(p_index)->get_meta(LW_NAME(_weight_), 1.0); }
-	_FORCE_INLINE_ double _get_weight(Ref<BTTask> p_task) const { return p_task->get_meta(LW_NAME(_weight_), 1.0); }
+	_FORCE_INLINE_ double _get_weight(int p_index) const { return _get_weight(get_child(p_index)); }
+	double _get_weight(Ref<BTTask> p_task) const;
 	_FORCE_INLINE_ void _set_weight(int p_index, double p_weight) {
 		get_child(p_index)->set_meta(LW_NAME(_weight_), Variant(p_weight));
 		get_child(p_index)->emit_signal(LW_NAME(changed));
@@ -46,6 +47,7 @@ private:
 				total += _get_weight(i);
 			}
 		}
+		ERR_FAIL_COND_V_MSG(!Math::is_finite(total), 0.0, "Probability weight total must be finite.");
 		return total;
 	}
 
