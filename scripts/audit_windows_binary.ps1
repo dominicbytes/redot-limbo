@@ -4,6 +4,11 @@ param(
 )
 
 $ErrorActionPreference = "Stop"
+trap {
+    [Console]::Error.WriteLine("FAIL: Windows binary audit failed.")
+    exit 1
+}
+
 $visualStudioRoots = @(
     "$env:ProgramFiles\Microsoft Visual Studio\2022",
     "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022"

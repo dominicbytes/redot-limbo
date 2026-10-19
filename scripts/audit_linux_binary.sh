@@ -18,7 +18,7 @@ for library in "$@"; do
 	audit readelf -h "$library" | grep -E "Class:|Machine:|Type:"
 	audit readelf -d "$library" | grep NEEDED
 	audit nm -D --defined-only "$library" | grep " limboai_init$"
-	glibc_max="$(readelf --version-info "$library" | grep -oE 'GLIBC_[0-9]+(\.[0-9]+)+' | sed 's/^GLIBC_//' | sort -Vu | tail -n 1)"
+	glibc_max="$(audit readelf --version-info "$library" | grep -oE 'GLIBC_[0-9]+(\.[0-9]+)+' | sed 's/^GLIBC_//' | sort -Vu | tail -n 1)"
 	if [ -z "$glibc_max" ]; then
 		echo "GLIBC_VERSION_NOT_FOUND" >&2
 		exit 5
