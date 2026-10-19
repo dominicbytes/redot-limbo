@@ -32,7 +32,7 @@ required.
 
 Automatic downgrade migration is unsupported. Later source may contain
 classes or serialized properties absent from the immutable 1.8.0 tag. Compare
-the exact resources and use an owner-reviewed conversion before resaving them.
+the exact resources and use a project-specific conversion before resaving them.
 
 ## Troubleshooting
 
