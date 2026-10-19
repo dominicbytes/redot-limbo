@@ -79,7 +79,8 @@ BT::Status BTSetAgentProperty::_tick(double p_delta) {
 		Variant left_value = get_agent()->get(property, &r_valid);
 		ERR_FAIL_COND_V_MSG(!r_valid, FAILURE, vformat("BTSetAgentProperty: Failed to get agent's \"%s\" property. Returning FAILURE.", property));
 #elif LIMBOAI_GDEXTENSION
-		Variant left_value = get_agent()->get(property);
+		Variant left_value = Variant(get_agent()).get_named(property, r_valid);
+		ERR_FAIL_COND_V_MSG(!r_valid, FAILURE, "BTSetAgentProperty: Agent property read failed.");
 #endif
 		result = LimboUtility::get_singleton()->perform_operation(operation, left_value, right_value);
 		ERR_FAIL_COND_V_MSG(result == Variant(), FAILURE, "BTSetAgentProperty: Operation not valid. Returning FAILURE.");
@@ -89,7 +90,8 @@ BT::Status BTSetAgentProperty::_tick(double p_delta) {
 	get_agent()->set(property, result, &r_valid);
 	ERR_FAIL_COND_V_MSG(!r_valid, FAILURE, vformat("BTSetAgentProperty: Couldn't set property \"%s\" with value \"%s\"", property, result));
 #elif LIMBOAI_GDEXTENSION
-	get_agent()->set(property, result);
+	Variant(get_agent()).set_named(property, result, r_valid);
+	ERR_FAIL_COND_V_MSG(!r_valid, FAILURE, "BTSetAgentProperty: Agent property write failed.");
 #endif
 	return SUCCESS;
 }
