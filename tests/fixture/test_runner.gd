@@ -55,6 +55,7 @@ func _run() -> void:
 	_test_blackboard_contract()
 	_test_blackboard_runtime_inspection()
 	_test_blackboard_binding_roots()
+	_test_blackboard_inherited_prefetch()
 	_test_hsm_transition_completion()
 	_test_hsm_exit_transaction()
 	_test_hsm_guard_fallback()
@@ -779,4 +780,37 @@ func _test_hsm_guard_fallback() -> void:
 	var fallback: bool = hsm.dispatch(&"go") and hsm.get_active_state() == c and calls.size() == 1
 	_record_case("hsm_guard_fallback", rejected and fallback, {"rejected_without_fallback": rejected, "anystate_fallback": fallback, "guard_calls": calls.size()})
 	hsm.set_active(false)
+	host.free()
+
+
+func _test_blackboard_inherited_prefetch() -> void:
+	var host := Node.new()
+	root.add_child(host)
+	var passed := true
+	var observations: Array[Dictionary] = []
+	for enabled: bool in [false, true]:
+		var base := BlackboardPlan.new()
+		base.prefetch_nodepath_vars = enabled
+		base.set("var/path/name", "path")
+		base.set("var/path/type", TYPE_NODE_PATH)
+		base.set("var/path/value", NodePath("."))
+		var derived := BlackboardPlan.new()
+		derived.set_base_plan(base)
+		var second := BlackboardPlan.new()
+		second.set_base_plan(derived)
+		var mode_passed := true
+		for plan: BlackboardPlan in [derived, second]:
+			var bb: Blackboard = plan.create_blackboard(host)
+			var populated := Blackboard.new()
+			plan.populate_blackboard(populated, true, host)
+			var expected: Variant = host if enabled else NodePath(".")
+			mode_passed = mode_passed and plan.is_prefetching_nodepath_vars() == enabled and bb.get_var(&"path") == expected and populated.get_var(&"path") == expected
+			if not enabled:
+				var without_root: Blackboard = plan.create_blackboard(null)
+				mode_passed = mode_passed and without_root.get_var(&"path") == NodePath(".")
+				plan.populate_blackboard(populated, true, null)
+				mode_passed = mode_passed and populated.get_var(&"path") == NodePath(".")
+		passed = passed and mode_passed
+		observations.append({"enabled": enabled, "passed": mode_passed})
+	_record_case("blackboard_inherited_prefetch", passed, {"observations": observations})
 	host.free()

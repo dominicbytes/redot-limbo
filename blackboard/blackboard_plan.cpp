@@ -511,7 +511,7 @@ void BlackboardPlan::sync_with_base_plan() {
 }
 
 Ref<Blackboard> BlackboardPlan::create_blackboard(Node *p_prefetch_root, const Ref<Blackboard> &p_parent_scope, Node *p_prefetch_root_for_base_plan) {
-	ERR_FAIL_COND_V(p_prefetch_root == nullptr && prefetch_nodepath_vars, memnew(Blackboard));
+	ERR_FAIL_COND_V(p_prefetch_root == nullptr && is_prefetching_nodepath_vars(), memnew(Blackboard));
 	Ref<Blackboard> bb = memnew(Blackboard);
 	bb->set_parent(p_parent_scope);
 	populate_blackboard(bb, true, p_prefetch_root, p_prefetch_root_for_base_plan);
@@ -519,7 +519,7 @@ Ref<Blackboard> BlackboardPlan::create_blackboard(Node *p_prefetch_root, const R
 }
 
 void BlackboardPlan::populate_blackboard(const Ref<Blackboard> &p_blackboard, bool overwrite, Node *p_prefetch_root, Node *p_prefetch_root_for_base_plan) {
-	ERR_FAIL_COND(p_prefetch_root == nullptr && prefetch_nodepath_vars);
+	ERR_FAIL_COND(p_prefetch_root == nullptr && is_prefetching_nodepath_vars());
 	ERR_FAIL_COND(p_blackboard.is_null());
 	for (const Pair<StringName, BBVariable> &p : var_list) {
 		if (p_blackboard->has_local_var(p.first) && !overwrite) {
@@ -535,7 +535,7 @@ void BlackboardPlan::populate_blackboard(const Ref<Blackboard> &p_blackboard, bo
 		}
 		bool is_bound = has_property_binding(p.first) || (is_derived() && get_base_plan()->has_property_binding(p.first));
 		bool has_mapping = parent_scope_mapping.has(p.first);
-		bool do_prefetch = !is_bound && !has_mapping && prefetch_nodepath_vars;
+		bool do_prefetch = !is_bound && !has_mapping && is_prefetching_nodepath_vars();
 
 		// Add a variable duplicate to the blackboard, optionally with NodePath prefetch.
 		BBVariable var = p.second.duplicate(true);
