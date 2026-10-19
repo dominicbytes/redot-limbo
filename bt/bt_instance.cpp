@@ -44,6 +44,10 @@ Ref<BTInstance> BTInstance::create(Ref<BTTask> p_root_task, String p_source_bt_p
 
 BT::Status BTInstance::update(double p_delta) {
 	ERR_FAIL_COND_V(!root_task.is_valid(), BT::FRESH);
+	if (context_failed && !is_instance_valid()) {
+		return BT::FAILURE;
+	}
+	context_failed = false;
 
 #ifdef DEBUG_ENABLED
 	double start = Time::get_singleton()->get_ticks_usec();
@@ -51,6 +55,7 @@ BT::Status BTInstance::update(double p_delta) {
 
 	const Ref<BTInstance> keep_alive{ this }; // keep instance alive until update is finished
 	last_status = root_task->execute(p_delta);
+	context_failed = last_status != BT::FRESH && !is_instance_valid();
 	emit_signal(LW_NAME(updated), last_status);
 
 #ifdef DEBUG_ENABLED

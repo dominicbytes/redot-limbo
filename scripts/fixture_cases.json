@@ -11,5 +11,20 @@
   "custom_task_categories",
   "hsm_transition_cargo",
   "hsm_and_bt_state",
-  "runtime_view_and_performance"
+  "runtime_view_and_performance",
+  "disabled_subtree",
+  "reentrant_abort",
+  "abort_on_state_transition",
+  "node_lifetime",
+  "agent_property_validity",
+  "call_method_errors",
+  "late_player_tree_defaults",
+  "player_tree_replacement_cleanup",
+  "foreach_shrink_cleanup",
+  "children_replacement_links",
+  "probability_weight_validation",
+  "cancelled_context_loss",
+  "player_context_loss",
+  "state_context_loss",
+  "player_setup_replacement"
 ]

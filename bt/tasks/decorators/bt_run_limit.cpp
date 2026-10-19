@@ -31,6 +31,9 @@ BT::Status BTRunLimit::_tick(double p_delta) {
 		return FAILURE;
 	}
 	Status child_status = get_child(0)->execute(p_delta);
+	if (_is_execution_cancelled()) {
+		return FRESH;
+	}
 	if ((count_policy == COUNT_SUCCESSFUL && child_status == SUCCESS) ||
 			(count_policy == COUNT_FAILED && child_status == FAILURE) ||
 			(count_policy == COUNT_ALL && child_status != RUNNING)) {

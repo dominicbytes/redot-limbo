@@ -56,13 +56,16 @@ String BTPauseAnimation::_generate_name() {
 void BTPauseAnimation::_setup() {
 	setup_failed = true;
 	ERR_FAIL_COND_MSG(animation_player_param.is_null(), "BTPauseAnimation: AnimationPlayer parameter is not set.");
-	animation_player = Object::cast_to<AnimationPlayer>(animation_player_param->get_value(get_scene_root(), get_blackboard()));
+	AnimationPlayer *animation_player = Object::cast_to<AnimationPlayer>(animation_player_param->get_value(get_scene_root(), get_blackboard()));
 	ERR_FAIL_COND_MSG(animation_player == nullptr, "BTPauseAnimation: Failed to get AnimationPlayer.");
+	animation_player_id = animation_player->get_instance_id();
 	setup_failed = false;
 }
 
 BT::Status BTPauseAnimation::_tick(double p_delta) {
 	ERR_FAIL_COND_V_MSG(setup_failed == true, FAILURE, "BTPauseAnimation: _setup() failed - returning FAILURE.");
+	AnimationPlayer *animation_player = Object::cast_to<AnimationPlayer>(ObjectDB::get_instance(animation_player_id));
+	ERR_FAIL_NULL_V_MSG(animation_player, FAILURE, "AnimationPlayer no longer exists.");
 	animation_player->pause();
 	return SUCCESS;
 }

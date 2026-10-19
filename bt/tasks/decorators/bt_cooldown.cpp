@@ -67,6 +67,9 @@ BT::Status BTCooldown::_tick(double p_delta) {
 		return FAILURE;
 	}
 	Status status = get_child(0)->execute(p_delta);
+	if (_is_execution_cancelled()) {
+		return FRESH;
+	}
 	if (status == SUCCESS || (trigger_on_failure && status == FAILURE)) {
 		_chill();
 	}

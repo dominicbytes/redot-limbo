@@ -65,7 +65,9 @@ void BTPlayer::_initialize_blackboard() {
 }
 
 void BTPlayer::_initialize_bt() {
-	bt_instance.unref();
+	if (bt_instance.is_valid()) {
+		return;
+	}
 	ERR_FAIL_COND_MSG(!behavior_tree.is_valid(), "BTPlayer: Initialization failed - needs a valid behavior tree.");
 	ERR_FAIL_COND_MSG(!behavior_tree->get_root_task().is_valid(), "BTPlayer: Initialization failed - behavior tree has no valid root task.");
 	Node *agent = get_node_or_null(agent_node);
@@ -73,8 +75,17 @@ void BTPlayer::_initialize_bt() {
 	Node *scene_root = _get_scene_root();
 	ERR_FAIL_COND_MSG(scene_root == nullptr,
 			"BTPlayer: Initialization failed - unable to establish scene root. This is likely due to BTPlayer not being owned by a scene node. Check BTPlayer.set_scene_root_hint().");
-	bt_instance = behavior_tree->instantiate(agent, blackboard, this, scene_root);
-	ERR_FAIL_COND_MSG(bt_instance.is_null(), "BTPlayer: Failed to instantiate behavior tree.");
+	const uint64_t generation = instance_change_generation;
+	const Ref<BehaviorTree> tree = behavior_tree;
+	Ref<BTInstance> instance = tree->instantiate(agent, blackboard, this, scene_root);
+	if (generation != instance_change_generation) {
+		if (instance.is_valid()) {
+			instance->get_root_task()->abort();
+		}
+		return;
+	}
+	ERR_FAIL_COND_MSG(instance.is_null(), "BTPlayer: Failed to instantiate behavior tree.");
+	bt_instance = instance;
 #ifdef DEBUG_ENABLED
 	bt_instance->set_monitor_performance(monitor_performance);
 	bt_instance->register_with_debugger();
@@ -96,9 +107,21 @@ void BTPlayer::set_bt_instance(const Ref<BTInstance> &p_bt_instance) {
 	ERR_FAIL_COND_MSG(p_bt_instance.is_null(), "BTPlayer: Failed to set behavior tree instance - instance is null.");
 	ERR_FAIL_COND_MSG(!p_bt_instance->is_instance_valid(), "BTPlayer: Failed to set behavior tree instance - instance is not valid.");
 
-	bt_instance = p_bt_instance;
-	blackboard = p_bt_instance->get_blackboard();
-	agent_node = p_bt_instance->get_agent()->get_path();
+	ERR_FAIL_NULL_MSG(p_bt_instance->get_agent(), "BTPlayer: Instance agent no longer exists.");
+	Ref<BTInstance> next = p_bt_instance;
+	Ref<BTInstance> previous = bt_instance;
+	const uint64_t generation = ++instance_change_generation;
+	bt_instance.unref();
+	if (previous.is_valid() && previous != next) {
+		previous->get_root_task()->abort();
+	}
+	if (generation != instance_change_generation) {
+		return;
+	}
+	ERR_FAIL_COND_MSG(!next->is_instance_valid(), "BTPlayer: Instance context no longer exists.");
+	bt_instance = next;
+	blackboard = next->get_blackboard();
+	agent_node = next->get_agent()->get_path();
 
 #ifdef DEBUG_ENABLED
 	bt_instance->set_monitor_performance(monitor_performance);
@@ -119,7 +142,7 @@ void BTPlayer::set_scene_root_hint(Node *p_scene_root) {
 }
 
 void BTPlayer::set_behavior_tree(const Ref<BehaviorTree> &p_tree) {
-	if (behavior_tree == p_tree) {
+	if (behavior_tree == p_tree && (p_tree.is_valid() || bt_instance.is_null())) {
 		return;
 	}
 
@@ -133,10 +156,19 @@ void BTPlayer::set_behavior_tree(const Ref<BehaviorTree> &p_tree) {
 		behavior_tree = p_tree;
 		_update_blackboard_plan();
 	} else { // runtime
+		const uint64_t generation = ++instance_change_generation;
+		Ref<BTInstance> previous = bt_instance;
 		behavior_tree = p_tree;
 		bt_instance.unref();
+		if (previous.is_valid()) {
+			previous->get_root_task()->abort();
+		}
+		if (generation != instance_change_generation) {
+			return;
+		}
 
 		if (IS_NODE_READY(this)) {
+			_initialize_blackboard();
 			_try_initialize();
 		}
 	}
@@ -182,7 +214,15 @@ void BTPlayer::update(double p_delta) {
 	}
 
 	if (active) {
-		BT::Status status = bt_instance->update(p_delta);
+		const Ref<BTInstance> instance = bt_instance;
+		if (instance->has_context_failed() && !instance->is_instance_valid()) {
+			set_active(false);
+			return;
+		}
+		BT::Status status = instance->update(p_delta);
+		if (bt_instance == instance && !instance->is_instance_valid()) {
+			set_active(false);
+		}
 		emit_signal(LW_NAME(updated), status);
 #ifndef DISABLE_DEPRECATED
 		if (status == BTTask::SUCCESS || status == BTTask::FAILURE) {

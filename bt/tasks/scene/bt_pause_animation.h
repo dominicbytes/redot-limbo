@@ -31,7 +31,7 @@ class BTPauseAnimation : public BTAction {
 private:
 	Ref<BBNode> animation_player_param;
 
-	AnimationPlayer *animation_player = nullptr;
+	ObjectID animation_player_id;
 	bool setup_failed = false;
 
 protected:

@@ -128,8 +128,15 @@ BT::Status BTCallMethod::_tick(double p_delta) {
 		call_args.push_back(param->get_value(get_scene_root(), get_blackboard()));
 	}
 
-	// TODO: Unsure how to detect call error, so we return SUCCESS for now...
-	result = obj->callv(method, call_args);
+	Vector<const Variant *> argptrs;
+	argptrs.resize(call_args.size());
+	for (int i = 0; i < call_args.size(); i++) {
+		argptrs.write[i] = &call_args[i];
+	}
+	Variant receiver(obj);
+	GDExtensionCallError error{};
+	receiver.callp(method, argptrs.ptrw(), call_args.size(), result, error);
+	ERR_FAIL_COND_V_MSG(error.error != GDEXTENSION_CALL_OK, FAILURE, "BTCallMethod: Method call failed.");
 #endif // LIMBOAI_MODULE & LIMBOAI_GDEXTENSION
 
 	if (result_var != StringName()) {

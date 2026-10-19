@@ -224,5 +224,35 @@ class EvidenceWriterTests(unittest.TestCase):
                         self.assertNotIn("-d", command)
 
 
+class ContextDiagnosticTests(unittest.TestCase):
+    ERROR = "ERROR: BTTask: Agent or scene root no longer exists."
+
+    def result(self):
+        return {"cases": [{"name": "player_context_loss", "passed": True,
+                           "details": {"error_counts": [1, 1]}}]}
+
+    def test_counted_context_errors_are_accepted(self):
+        self.assertEqual(RUN_FIXTURE.unexpected_diagnostics("", (self.ERROR + "\n") * 2, self.result()), [])
+
+    def test_missing_or_repeated_errors_fail(self):
+        for count in [0, 1, 3, 8]:
+            self.assertTrue(RUN_FIXTURE.unexpected_diagnostics("", (self.ERROR + "\n") * count, self.result()))
+
+    def test_other_errors_and_import_errors_are_not_hidden(self):
+        log = (self.ERROR + "\n") * 2
+        for editor, runtime in [(self.ERROR, log), ("", log + "WARNING: unrelated")]:
+            self.assertTrue(RUN_FIXTURE.unexpected_diagnostics(editor, runtime, self.result()))
+
+    def test_failed_case_cannot_allow_diagnostics(self):
+        result = self.result()
+        result["cases"][0]["passed"] = False
+        self.assertTrue(RUN_FIXTURE.unexpected_diagnostics("", (self.ERROR + "\n") * 2, result))
+
+    def test_malformed_results_cannot_allow_errors(self):
+        for result in [None, {}, {"cases": None}, {"cases": [None]},
+                       {"cases": [{"name": "player_context_loss", "passed": True, "details": None}]}]:
+            self.assertTrue(RUN_FIXTURE.unexpected_diagnostics("", self.ERROR, result))
+
+
 if __name__ == "__main__":
     unittest.main()
