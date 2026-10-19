@@ -111,6 +111,7 @@ jobs:
     timeout-minutes: 70
     defaults:
       run:
+        shell: bash
         working-directory: plugins/redot-limboai
     steps:
       - name: Checkout source
@@ -178,6 +179,7 @@ jobs:
     timeout-minutes: 90
     defaults:
       run:
+        shell: bash
         working-directory: plugins/redot-limboai
     steps:
       - name: Checkout source
