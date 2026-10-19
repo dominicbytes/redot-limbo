@@ -79,7 +79,7 @@ jobs:
     uses: ./.github/workflows/demo.yml
 
   merge_templates:
-    if: ${{ github.repository == 'limbonaut/limboai' }}
+    if: ${{ github.repository == 'limbonaut/limboai' && always() }}
     name: 📦 Merge templates
 
     needs: [resolve-godot-ref, android-build, ios-build, linux-build, macos-build, windows-build, web-build]

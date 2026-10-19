@@ -21,7 +21,7 @@ class WorkflowGuardTests(unittest.TestCase):
             blocks = re.split(r"^  [\w-]+:\n", jobs, flags=re.M)[1:]
             self.assertTrue(blocks)
             for block in blocks:
-                self.assertTrue(block.startswith("    if: ${{ github.repository == 'limbonaut/limboai' }}\n"))
+                self.assertIn("github.repository == 'limbonaut/limboai'", block.splitlines()[0])
 
     def test_uploads_are_gated_on_scanned_evidence_and_exclude_projects(self):
         text = (WORKFLOWS / "redot-desktop.yml").read_text(encoding="utf-8")
