@@ -80,8 +80,8 @@ LimboAI was created by Serhii Snitsaruk and contributors. Source code is
 distributed under the MIT-style terms in `LICENSE.md`. The upstream logo and
 demo graphics are CC BY 4.0 and are intentionally excluded from the core
 archive; their notices travel with the separate demo package. Bundled demo
-fonts retain the SIL Open Font License 1.1. See `THIRD_PARTY_NOTICES.md` and
-`demo/THIRD_PARTY_FONTS.md`.
+fonts retain SIL OFL 1.1; see `THIRD_PARTY_NOTICES.md`. Font notices are at
+`demo/THIRD_PARTY_FONTS.md` in source or `THIRD_PARTY_FONTS.md` in the demo ZIP.
 
 Upstream project: https://github.com/limbonaut/limboai
 

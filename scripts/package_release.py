@@ -19,10 +19,12 @@ FIXED_ZIP_TIME = (1980, 1, 1, 0, 0, 0)
 CORE_DOCS = (
     "README.md",
     "COMPATIBILITY.md",
+    "UPSTREAM_LOCK.md",
     "LIMITATIONS.md",
     "MIGRATION.md",
     "THIRD_PARTY_NOTICES.md",
     "LICENSE.md",
+    "LICENSE_REDOT_CPP.md",
 )
 FORBIDDEN_PARTS = {
     ".godot",
