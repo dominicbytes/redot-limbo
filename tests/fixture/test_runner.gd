@@ -57,6 +57,7 @@ func _run() -> void:
 	_test_blackboard_binding_roots()
 	_test_hsm_transition_completion()
 	_test_hsm_exit_transaction()
+	_test_hsm_guard_fallback()
 	var tree: BehaviorTree = _test_resource_roundtrip()
 	if tree != null:
 		_test_direct_tree_execution(tree)
@@ -751,3 +752,31 @@ func _test_blackboard_binding_roots() -> void:
 		"unbound": unbound.get_var(&"priority"),
 	})
 	scene.free()
+
+
+func _test_hsm_guard_fallback() -> void:
+	var host := Node.new()
+	root.add_child(host)
+	var hsm := LimboHSM.new()
+	hsm.update_mode = LimboHSM.MANUAL
+	host.add_child(hsm)
+	var a := LimboState.new()
+	var b := LimboState.new()
+	var c := LimboState.new()
+	hsm.add_child(a)
+	hsm.add_child(b)
+	hsm.add_child(c)
+	var calls: Array[int] = []
+	hsm.add_transition(a, b, &"go", func() -> bool:
+		calls.append(1)
+		return calls.size() > 1
+	)
+	hsm.initialize(host)
+	hsm.set_active(true)
+	var rejected: bool = not hsm.dispatch(&"go") and hsm.get_active_state() == a and calls.size() == 1
+	calls.clear()
+	hsm.add_transition(hsm.ANYSTATE, c, &"go")
+	var fallback: bool = hsm.dispatch(&"go") and hsm.get_active_state() == c and calls.size() == 1
+	_record_case("hsm_guard_fallback", rejected and fallback, {"rejected_without_fallback": rejected, "anystate_fallback": fallback, "guard_calls": calls.size()})
+	hsm.set_active(false)
+	host.free()

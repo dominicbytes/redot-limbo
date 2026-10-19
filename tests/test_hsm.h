@@ -73,7 +73,11 @@ class TestGuard : public RefCounted {
 
 public:
 	bool permitted_to_enter = false;
-	bool can_enter() { return permitted_to_enter; }
+	int calls = 0;
+	bool can_enter() {
+		calls++;
+		return permitted_to_enter;
+	}
 };
 
 TEST_CASE("[Modules][LimboAI] HSM") {
@@ -330,6 +334,7 @@ TEST_CASE("[Modules][LimboAI] HSM") {
 		SUBCASE("When entry is permitted") {
 			guard->permitted_to_enter = true;
 			hsm->dispatch("guarded_transition");
+			CHECK(guard->calls == 1);
 			CHECK(hsm->get_active_state() == state_beta);
 			CHECK(alpha_exits->num_callbacks == 1);
 			CHECK(beta_entries->num_callbacks == 1);
@@ -337,6 +342,7 @@ TEST_CASE("[Modules][LimboAI] HSM") {
 		SUBCASE("When entry is not permitted") {
 			guard->permitted_to_enter = false;
 			hsm->dispatch("guarded_transition");
+			CHECK(guard->calls == 1);
 			CHECK(hsm->get_active_state() == state_alpha);
 			CHECK(alpha_exits->num_callbacks == 0);
 			CHECK(beta_entries->num_callbacks == 0);
