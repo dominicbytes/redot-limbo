@@ -14,7 +14,7 @@
 		<method name="_enter" qualifiers="virtual">
 			<return type="void" />
 			<description>
-				Called when the state is entered.
+				Called when the state is entered, after processing has been enabled. If this callback exits or deactivates the state, processing remains disabled.
 			</description>
 		</method>
 		<method name="_exit" qualifiers="virtual">

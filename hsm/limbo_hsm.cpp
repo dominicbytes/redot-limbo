@@ -31,10 +31,9 @@ void LimboHSM::set_active(bool p_active) {
 		return;
 	}
 
-	active = p_active;
 	is_initiating_update = p_active;
 
-	if (active) {
+	if (p_active) {
 		_enter();
 	} else {
 		_exit();
@@ -51,12 +50,20 @@ void LimboHSM::change_active_state(LimboState *p_state) {
 		previous_active = active_state;
 	}
 
+	const uint64_t sequence = ++activation_sequence;
+	const ObjectID entered_id = ObjectID(p_state->get_instance_id());
 	active_state = p_state;
 	active_state->_enter();
 
-	emit_signal(LW_NAME(active_state_changed), active_state, previous_active);
+	LimboState *entered = Object::cast_to<LimboState>(ObjectDB::get_instance(entered_id));
+	if (sequence == activation_sequence && is_active() && entered != nullptr && active_state == entered) {
+		emit_signal(LW_NAME(active_state_changed), active_state, previous_active);
+	}
 
-	active_state->_clear_cargo();
+	entered = Object::cast_to<LimboState>(ObjectDB::get_instance(entered_id));
+	if (entered != nullptr) {
+		entered->_clear_cargo();
+	}
 }
 
 void LimboHSM::_enter() {

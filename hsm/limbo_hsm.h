@@ -57,6 +57,7 @@ private:
 	LimboState *active_state;
 	LimboState *previous_active;
 	LimboState *next_active;
+	uint64_t activation_sequence = 0;
 	bool updating = false;
 	bool was_active = false;
 	bool is_initiating_update = false;

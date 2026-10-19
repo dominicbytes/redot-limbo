@@ -80,12 +80,12 @@ LimboState *LimboState::named(const String &p_name) {
 
 void LimboState::_enter() {
 	active = true;
-	GDVIRTUAL_CALL(_enter);
-	emit_signal(LW_NAME(entered));
 	set_process(true);
 	set_physics_process(true);
 	set_process_input(true);
 	set_process_unhandled_input(true);
+	GDVIRTUAL_CALL(_enter);
+	emit_signal(LW_NAME(entered));
 }
 
 void LimboState::_exit() {

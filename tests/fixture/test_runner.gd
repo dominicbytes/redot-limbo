@@ -54,6 +54,7 @@ func _run() -> void:
 	_test_class_registration()
 	_test_blackboard_contract()
 	_test_blackboard_runtime_inspection()
+	_test_hsm_transition_completion()
 	var tree: BehaviorTree = _test_resource_roundtrip()
 	if tree != null:
 		_test_direct_tree_execution(tree)
@@ -564,3 +565,63 @@ func _write_result() -> void:
 	file.store_string(JSON.stringify(result, "\t") + "\n")
 	file.close()
 	print("LIMBOAI_FIXTURE_RESULT %s" % JSON.stringify(result))
+
+
+func _test_hsm_transition_completion() -> void:
+	var passed := true
+	var observations: Array[Dictionary] = []
+	for mode: String in ["enter_chain", "signal_chain", "enter_return", "enter_stop", "signal_stop"]:
+		var host := Node.new()
+		root.add_child(host)
+		var hsm := LimboHSM.new()
+		hsm.update_mode = LimboHSM.MANUAL
+		host.add_child(hsm)
+		var a := LimboState.new().named("A")
+		var b := LimboState.new().named("B")
+		var c := LimboState.new().named("C")
+		hsm.add_child(a)
+		hsm.add_child(b)
+		hsm.add_child(c)
+		hsm.add_transition(a, b, &"go")
+		hsm.add_transition(b, c, &"next")
+		hsm.add_transition(c, b, &"back")
+		hsm.initialize(host)
+		hsm.set_active(true)
+		var changes: Array[String] = []
+		var cargo: Array[int] = []
+		b.entered.connect(func() -> void: cargo.append(int(b.get_cargo())))
+		c.entered.connect(func() -> void: cargo.append(int(c.get_cargo())))
+		hsm.active_state_changed.connect(func(current: LimboState, _previous: LimboState) -> void: changes.append(current.name))
+		if mode == "enter_chain":
+			b.entered.connect(func() -> void: hsm.dispatch(&"next", 22))
+		elif mode == "enter_return":
+			b.entered.connect(func() -> void:
+				if cargo.size() == 1:
+					hsm.dispatch(&"next", 22)
+			)
+			c.entered.connect(func() -> void: hsm.dispatch(&"back", 33))
+		elif mode == "signal_chain":
+			hsm.active_state_changed.connect(func(current: LimboState, _previous: LimboState) -> void:
+				if current == b:
+					hsm.dispatch(&"next", 22)
+			)
+		elif mode == "enter_stop":
+			b.entered.connect(func() -> void: hsm.set_active(false))
+		else:
+			hsm.active_state_changed.connect(func(_current: LimboState, _previous: LimboState) -> void: hsm.set_active(false))
+		var consumed: bool = hsm.dispatch(&"go", 11)
+		var mode_passed: bool = consumed and b.get_cargo() == null and c.get_cargo() == null
+		if mode.ends_with("chain"):
+			mode_passed = mode_passed and hsm.get_active_state() == c and not b.is_active() and not b.is_processing() and cargo == [11, 22]
+			mode_passed = mode_passed and changes == (["C"] if mode == "enter_chain" else ["B", "C"])
+		elif mode == "enter_return":
+			mode_passed = mode_passed and hsm.get_active_state() == b and not c.is_active() and not c.is_processing() and cargo == [11, 22, 33] and changes == ["B"]
+		else:
+			mode_passed = mode_passed and not hsm.is_active() and hsm.get_active_state() == null and not b.is_active()
+			mode_passed = mode_passed and not b.is_processing() and not b.is_physics_processing() and not b.is_processing_input() and not b.is_processing_unhandled_input()
+			mode_passed = mode_passed and not hsm.is_processing() and cargo == [11] and changes == ([] if mode == "enter_stop" else ["B"])
+		passed = passed and mode_passed
+		observations.append({"mode": mode, "passed": mode_passed, "changes": changes, "cargo": cargo})
+		hsm.set_active(false)
+		host.free()
+	_record_case("hsm_transition_completion", passed, {"observations": observations})

@@ -230,7 +230,7 @@ TEST_CASE("[Modules][LimboAI] HSM") {
 	SUBCASE("Test dispatch() inside _enter()") {
 		state_beta->connect("entered",
 				callable_mp_static(_on_enter_dispatch).bind(state_beta, "event_two"));
-		hsm->dispatch("event_one");
+		hsm->dispatch("event_one", 25);
 		REQUIRE(hsm->get_active_state() == state_alpha);
 		CHECK(alpha_entries->num_callbacks == 2);
 		CHECK(alpha_updates->num_callbacks == 0);
@@ -238,6 +238,9 @@ TEST_CASE("[Modules][LimboAI] HSM") {
 		CHECK(beta_entries->num_callbacks == 1);
 		CHECK(beta_updates->num_callbacks == 0);
 		CHECK(beta_exits->num_callbacks == 1);
+		CHECK(state_beta->get_cargo() == Variant());
+		CHECK(state_alpha->get_cargo() == Variant());
+		CHECK_FALSE(state_beta->is_processing());
 	}
 	SUBCASE("Test get_cargo() inside and outside _enter()") {
 		const int DATA = 25;

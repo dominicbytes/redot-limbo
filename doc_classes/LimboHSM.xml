@@ -105,7 +105,7 @@
 			<param index="0" name="current" type="LimboState" />
 			<param index="1" name="previous" type="LimboState" />
 			<description>
-				Emitted when the currently active substate is switched to a different substate.
+				Emitted after entering the new active substate, provided entry callbacks have not already transitioned again or deactivated the machine.
 			</description>
 		</signal>
 	</signals>
