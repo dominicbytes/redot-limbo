@@ -1,4 +1,4 @@
-name: 🔗 All builds
+name: Upstream Godot reference (unsupported on Redot) - all_builds
 on:
   workflow_dispatch:
     inputs:
@@ -9,12 +9,14 @@ on:
 
 jobs:
   resolve-godot-ref:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 🔖 Godot ref
     uses: ./.github/workflows/resolve-godot-ref.yml
     with:
       godot-ref: ${{ inputs.godot-ref }}
 
   android-build:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 🤖 Android
     needs: resolve-godot-ref
     uses: ./.github/workflows/android.yml
@@ -22,6 +24,7 @@ jobs:
       godot-ref: ${{ needs.resolve-godot-ref.outputs.godot-sha }}
 
   ios-build:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 🍏 iOS
     needs: resolve-godot-ref
     uses: ./.github/workflows/ios.yml
@@ -29,6 +32,7 @@ jobs:
       godot-ref: ${{ needs.resolve-godot-ref.outputs.godot-sha }}
 
   linux-build:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 🐧 Linux
     needs: resolve-godot-ref
     uses: ./.github/workflows/linux.yml
@@ -37,6 +41,7 @@ jobs:
       test-build: false
 
   macos-build:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 🍎 macOS
     needs: resolve-godot-ref
     uses: ./.github/workflows/macos.yml
@@ -44,6 +49,7 @@ jobs:
       godot-ref: ${{ needs.resolve-godot-ref.outputs.godot-sha }}
 
   windows-build:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 🪟 Windows
     needs: resolve-godot-ref
     uses: ./.github/workflows/windows.yml
@@ -52,6 +58,7 @@ jobs:
       test-build: false
 
   web-build:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 🌐 Web
     needs: resolve-godot-ref
     uses: ./.github/workflows/web.yml
@@ -59,19 +66,22 @@ jobs:
       godot-ref: ${{ needs.resolve-godot-ref.outputs.godot-sha }}
 
   gdextension:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 🔌 GDExtension
     uses: ./.github/workflows/gdextension.yml
     with:
       test-build: false
 
   demo:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 🎮️ Demo project
     needs: resolve-godot-ref
     uses: ./.github/workflows/demo.yml
 
   merge_templates:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 📦 Merge templates
-    if: ${{ always() }}
+
     needs: [resolve-godot-ref, android-build, ios-build, linux-build, macos-build, windows-build, web-build]
     uses: ./.github/workflows/merge_templates.yml
     with:
