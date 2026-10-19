@@ -11,6 +11,8 @@
 
 #include "bt_subtree.h"
 
+#include "../utility/bt_fail.h"
+
 #include "../../../util/limbo_string_names.h"
 
 #ifdef LIMBOAI_MODULE
@@ -60,7 +62,13 @@ void BTSubtree::initialize(Node *p_agent, const Ref<Blackboard> &p_blackboard, N
 	ERR_FAIL_COND_MSG(!subtree->get_root_task().is_valid(), "Subtree root task is not valid.");
 	ERR_FAIL_COND_MSG(get_child_count() != 0, "Subtree task shouldn't have children during initialization.");
 
-	add_child(subtree->get_root_task()->clone());
+	Ref<BTTask> child = subtree->get_root_task()->clone();
+	if (child.is_null()) {
+		ERR_FAIL_COND_MSG(subtree->get_root_task()->is_enabled_in_tree(), "Failed to clone subtree root task.");
+		child = Ref<BTTask>(memnew(BTFail));
+		child->set_custom_name("Root task disabled");
+	}
+	add_child(child);
 
 	BTNewScope::initialize(p_agent, p_blackboard, p_scene_root);
 }

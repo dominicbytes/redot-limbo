@@ -268,6 +268,7 @@ int BTTask::get_enabled_child_count() const {
 }
 
 void BTTask::add_child(Ref<BTTask> p_child) {
+	ERR_FAIL_COND_MSG(p_child.is_null(), "Cannot add a null child task.");
 	ERR_FAIL_COND_MSG(p_child->get_parent().is_valid(), "p_child already has a parent!");
 	p_child->data.parent = this;
 	p_child->data.index = data.children.size();
@@ -276,6 +277,7 @@ void BTTask::add_child(Ref<BTTask> p_child) {
 }
 
 void BTTask::add_child_at_index(Ref<BTTask> p_child, int p_idx) {
+	ERR_FAIL_COND_MSG(p_child.is_null(), "Cannot add a null child task.");
 	ERR_FAIL_COND_MSG(p_child->get_parent().is_valid(), "p_child already has a parent!");
 	if (p_idx < 0 || p_idx > data.children.size()) {
 		p_idx = data.children.size();
