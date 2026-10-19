@@ -15,8 +15,8 @@ import zipfile
 PATH_PATTERNS = (
     ("drive-root", re.compile(r"(?<!\w)[A-Za-z]:[\\/][^\r\n\x00\"<>|]*")),
     ("network-root", re.compile(r"(?<![:\w/\\])(?:\\\\|//)[^\\/\s\x00]+[\\/][^\r\n\x00\"<>|]+")),
-    ("rooted-path", re.compile(r"(?<![\w\x3a/])/(?:[^/\s\x00\"'<>|:]+/)+[^\s\x00\"'<>|:]*")),
-    ("home-or-mount-root", re.compile(r"(?<![\w\x3a/])/(?:home|Users|mnt|media|Volumes|workspace|workspaces|tmp)(?=[/\s\x00\"']|$)(?:/[^\r\n\x00\"'<>|]*)?", re.I)),
+    ("rooted-path", re.compile(r"(?<![\w\x3a/\\.])/(?:[^/\s\x00\"'<>|:]+/)+[^\s\x00\"'<>|:]*")),
+    ("home-or-mount-root", re.compile(r"(?<![\w\x3a/\\.])/(?:home|Users|mnt|media|Volumes|workspace|workspaces|tmp)(?=[/\s\x00\"']|$)(?:/[^\r\n\x00\"'<>|]*)?", re.I)),
 )
 CONTENT_PATTERNS = (
     ("private-key", re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----")),
@@ -75,10 +75,13 @@ def text_categories(text: str) -> set[str]:
 def scan_blob(name: str, data: bytes, depth: int = 0) -> list[tuple[str, str]]:
     safe_name = sanitize_text(name)
     categories = text_categories(name)
-    categories.update(text_categories(data.decode("utf-8", errors="replace")))
-    for encoding in ("utf-16le", "utf-16be"):
-        for offset in (0, 1):
-            categories.update(text_categories(data[offset:].decode(encoding, errors="ignore")))
+    decoded = data.decode("utf-8", errors="replace")
+    for match in re.finditer(r"[^\x00-\x1f\x7f-\x9f\ufffd]{4,}", decoded):
+        categories.update(text_categories(match[0]))
+    for pattern, encoding in ((rb"(?:[\x20-\x7e]\x00){3,}", "utf-16le"),
+                              (rb"(?:\x00[\x20-\x7e]){3,}", "utf-16be")):
+        for match in re.finditer(pattern, data):
+            categories.update(text_categories(match[0].decode(encoding)))
     hits = [(safe_name, category) for category in sorted(categories)]
     is_zip = data.startswith((b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08"))
     is_gzip = data.startswith(b"\x1f\x8b")

@@ -52,6 +52,13 @@ class ContentPolicyTests(unittest.TestCase):
         self.assertTrue(hits)
         self.assertNotIn(value, str(hits))
 
+    def test_paths_after_invalid_utf8_and_unicode_components_are_detected(self):
+        value = rooted_samples()[0]
+        self.assertTrue(policy.scan_blob("library.bin", b"invalid\xff" + value.encode()))
+        value = chr(81) + ":" + chr(92) + chr(0x6D4B) + chr(0x8BD5)
+        for encoding in ("utf-8", "utf-16le", "utf-16be"):
+            self.assertTrue(policy.scan_blob("library.bin", value.encode(encoding)))
+
     def test_malformed_and_excessively_nested_archives_fail_closed(self):
         self.assertIn(("broken.zip", "invalid-archive"), policy.scan_blob("broken.zip", b"PK\x03\x04invalid"))
         data = archive({"content.txt": b"safe"})
@@ -65,6 +72,11 @@ class ContentPolicyTests(unittest.TestCase):
         value += chr(47) + 'System/Library/Frameworks/Foundation.framework/Foundation'
         self.assertEqual(policy.scan_blob("legal.txt", value.encode()), [])
         self.assertEqual(policy.sanitize_text(value), value)
+
+    def test_relative_source_paths_and_opaque_code_bytes_are_not_rooted_paths(self):
+        relative = chr(92) + "bt" + chr(92) + "../hsm/limbo_state.h"
+        self.assertEqual(policy.scan_blob("library.bin", relative.encode()), [])
+        self.assertEqual(policy.scan_blob("library.bin", b"/\xff\x01/\xff\x02"), [])
 
     def test_nested_evidence_and_logs_are_sanitized(self):
         for value in rooted_samples():
