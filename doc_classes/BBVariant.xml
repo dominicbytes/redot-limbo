@@ -6,6 +6,7 @@
 	<description>
 		Variant-type parameter intended for use with [BehaviorTree] tasks. See [BBParam].
 		The data type is specified by [member type].
+		The type catalog follows the running engine: Struct is offered on Redot 26.3 and absent on 26.2. Selecting Struct constructs an empty value; define custom fields in 26.3 script. PackedVector4Array defaults to an empty array.
 	</description>
 	<tutorials>
 	</tutorials>

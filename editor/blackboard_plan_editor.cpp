@@ -15,6 +15,7 @@
 
 #include "../compat/editor_scale.h"
 #include "../compat/translation.h"
+#include "../compat/variant.h"
 #include "../util/limbo_string_names.h"
 #include "../util/limbo_utility.h"
 
@@ -466,7 +467,7 @@ void BlackboardPlanEditor::_notification(int p_what) {
 			remove_tool->set_button_icon(get_theme_icon(LW_NAME(Remove), LW_NAME(EditorIcons)));
 
 			type_menu->clear();
-			for (int i = 0; i < Variant::VARIANT_MAX; i++) {
+			for (int i = 0; i < VARIANT_TYPE_COUNT(); i++) {
 				if (i == Variant::RID || i == Variant::CALLABLE || i == Variant::SIGNAL) {
 					continue;
 				}

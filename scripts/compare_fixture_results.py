@@ -8,7 +8,7 @@ import json
 from pathlib import Path
 import sys
 
-from fixture_result import validate_result
+from fixture_result import validate_result, skipped_case_names
 from content_policy import display_path, sanitize, sanitize_text
 
 
@@ -51,6 +51,9 @@ def main() -> int:
                 left, left_cases = result, normalized_cases(result)
             else:
                 right, right_cases = result, normalized_cases(result)
+    conditional_difference = (skipped_case_names(left) ^ skipped_case_names(right)) if left and right else set()
+    left_cases = [case for case in left_cases if case["name"] not in conditional_difference]
+    right_cases = [case for case in right_cases if case["name"] not in conditional_difference]
     if left_cases != right_cases:
         differences.append("normalized case results differ")
     if left.get("fixed_delta") != right.get("fixed_delta"):
@@ -63,6 +66,7 @@ def main() -> int:
         "left_engine": left.get("engine"),
         "right_engine": right.get("engine"),
         "differences": differences,
+        "engine_conditional_cases": sorted(conditional_difference),
         "normalized_cases": left_cases if not differences else {
             "left": left_cases,
             "right": right_cases,

@@ -11,6 +11,8 @@
 
 #include "bb_variant.h"
 
+#include "../../compat/variant.h"
+
 #ifdef LIMBOAI_MODULE
 #include "core/object/class_db.h"
 #endif // LIMBOAI_MODULE
@@ -38,7 +40,7 @@ void BBVariant::_bind_methods() {
 	ClassDB::bind_method(D_METHOD("set_type", "type"), &BBVariant::set_type);
 
 	String vtypes;
-	for (int i = 0; i < Variant::VARIANT_MAX; i++) {
+	for (int i = 0; i < VARIANT_TYPE_COUNT(); i++) {
 		if (i > 0) {
 			vtypes += ",";
 		}

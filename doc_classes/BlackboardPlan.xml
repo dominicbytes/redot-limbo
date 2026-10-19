@@ -4,6 +4,7 @@
 		Stores and manages variables that will be used in constructing new [Blackboard] instances.
 	</brief_description>
 	<description>
+		The plan editor follows the running engine type catalog. Redot 26.3 offers an empty Struct default; custom Struct layouts require 26.3 script and cannot be used on 26.2.
 	</description>
 	<tutorials>
 	</tutorials>

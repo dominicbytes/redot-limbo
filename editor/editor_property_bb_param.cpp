@@ -16,6 +16,7 @@
 #include "../blackboard/bb_param/bb_variant.h"
 #include "../compat/object.h"
 #include "../compat/translation.h"
+#include "../compat/variant.h"
 #include "../util/limbo_string_names.h"
 #include "editor_property_variable_name.h"
 
@@ -102,12 +103,18 @@ void EditorPropertyBBParam::_create_value_editor(Object *p_object, const String 
 		case Variant::PACKED_STRING_ARRAY:
 		case Variant::PACKED_VECTOR2_ARRAY:
 		case Variant::PACKED_VECTOR3_ARRAY:
-		case Variant::PACKED_COLOR_ARRAY: {
+		case Variant::PACKED_COLOR_ARRAY:
+		case Variant::PACKED_VECTOR4_ARRAY: {
 			is_bottom = true;
 		} break;
 
 		default: {
-			ERR_PRINT("Unexpected variant type!");
+			// Struct is appended after the compiled packed-array types on 26.3.
+			if (int(p_type) == Variant::PACKED_VECTOR4_ARRAY + 1 && int(p_type) < VARIANT_TYPE_COUNT()) {
+				is_bottom = true;
+			} else {
+				ERR_PRINT("Unexpected variant type!");
+			}
 		}
 	}
 
@@ -219,7 +226,7 @@ void EditorPropertyBBParam::_notification(int p_what) {
 			Ref<BBParam> param = _get_edited_param();
 			bool is_variant_param = IS_CLASS(param, BBVariant);
 			if (is_variant_param) {
-				for (int i = 0; i < Variant::VARIANT_MAX; i++) {
+				for (int i = 0; i < VARIANT_TYPE_COUNT(); i++) {
 					if (i == Variant::RID || i == Variant::CALLABLE || i == Variant::SIGNAL) {
 						continue;
 					}
