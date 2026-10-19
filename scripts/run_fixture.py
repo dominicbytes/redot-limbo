@@ -294,7 +294,7 @@ def main() -> int:
         except ValueError as error:
             result_error = str(error)
 
-    if result_path is not None and result_path.is_file():
+    if result_source == "file" and result_path is not None:
         result_path.write_text(sanitize_text(result_path.read_text(encoding="utf-8"), replacements), encoding="utf-8")
     result = sanitize(result, replacements)
 

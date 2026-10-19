@@ -170,7 +170,7 @@ class ResultContractTests(unittest.TestCase):
 class EvidenceWriterTests(unittest.TestCase):
     def test_file_and_stdout_paths_use_identical_validation_and_safe_evidence(self):
         from content_policy import text_categories
-        for route in ("file", "stdout"):
+        for route in ("file", "stdout", "unreadable-file"):
             for valid in (False, True):
                 with self.subTest(route=route, valid=valid), tempfile.TemporaryDirectory() as temporary:
                     root = Path(temporary)
@@ -193,21 +193,27 @@ class EvidenceWriterTests(unittest.TestCase):
                         commands.append(command)
                         if "--editor" in command:
                             return 0, "Imported " + str(source), False, 0.1
-                        if route == "file":
+                        if route in ("file", "unreadable-file"):
                             result_file = output / "state/Roaming/Redot/app_userdata/fixture-result.json"
                             result_file.parent.mkdir(parents=True, exist_ok=True)
                             result_file.write_text(json.dumps(document))
                         return 0, RUN_FIXTURE.RESULT_PREFIX + json.dumps(document), False, 0.1
+                    original_read = Path.read_text
+                    def read(path, *args, **kwargs):
+                        if route == "unreadable-file" and path.name == "fixture-result.json":
+                            raise OSError("simulated inaccessible result file")
+                        return original_read(path, *args, **kwargs)
                     argv = ["run_fixture.py", "--engine", str(engine), "--addon-project", str(addon),
                             "--output", str(output), "--label", "test"]
                     with patch.object(RUN_FIXTURE, "__file__", str(source / "scripts/run_fixture.py")), \
                          patch.object(RUN_FIXTURE, "run_command", side_effect=run), \
+                         patch.object(Path, "read_text", read), \
                          patch.object(sys, "argv", argv), contextlib.redirect_stdout(io.StringIO()):
                         code = RUN_FIXTURE.main()
                     summary = json.loads((output / "run-summary.json").read_text())
                     self.assertEqual(code, 0 if valid else 1)
                     self.assertEqual(summary["passed"], valid)
-                    self.assertEqual(summary["result_source"], route if route == "file" or valid else None)
+                    self.assertEqual(summary["result_source"], "file" if route == "file" else "stdout" if valid else None)
                     for name in ("run-summary.json", "fixture.log", "editor-import.log"):
                         text = (output / name).read_text()
                         self.assertFalse(text_categories(text) - {"fixture-evidence"}, name)
