@@ -6,10 +6,10 @@
 # -- Project information -----------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
-project = "LimboAI"
+project = "Redot LimboAI"
 copyright = "2023-present Serhii Snitsaruk and the LimboAI contributors"
 author = "Serhii Snitsaruk and the LimboAI contributors"
-release = "1.0"
+release = "1.8.0+redot.26.2.1"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

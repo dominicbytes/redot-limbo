@@ -1,8 +1,8 @@
 # Compatibility
 
-## Supported contract
+## Source-port build contract
 
-| Component | Supported value |
+| Component | Locked input or build target |
 | --- | --- |
 | Redot | `26.2.stable.official.4f5b14aba` |
 | API lineage | Godot 4.5.2-compatible GDExtension API |
@@ -49,6 +49,19 @@ API JSON must all match.
 - Changes after upstream `v1.8.0` or current-master resources are not claimed
   compatible.
 - Mobile, Web, server, double-precision, C#/.NET, or engine-module support is
-  not part of this release.
-- A platform is not release-supported until its native CI, binary audit,
-  clean-install, and runtime/export evidence pass.
+  not part of this source port.
+- A source version or workflow artifact does not establish a published binary
+  release or validate every platform/architecture combination.
+
+## Validation scope
+
+Desktop CI builds and audits the listed editor and template-release targets,
+runs headless fixtures on the built addon using native Redot, and compares two
+independently assembled core/demo archives. These are workflow checks, not a
+claim that a particular workflow run passed for this source revision.
+
+Extracted-distribution execution, visible editor authoring, accessibility,
+repeated editor lifecycle checks, and native game exports require separate
+validation. Package-byte equality does not establish clean-install execution;
+forcing a template-release library in a fixture is not a native game export.
+See `LIMITATIONS.md` for coverage and performance boundaries.

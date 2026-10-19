@@ -1,7 +1,7 @@
 # Upstream and dependency lock
 
 Lock date: 2026-08-11. All hashes are hexadecimal SHA-256 unless identified as
-Git object IDs. The public release gate is not implied by this source lock.
+Git object IDs. This source lock does not establish a published binary release.
 
 ## Source selection
 
@@ -22,8 +22,8 @@ The complete immutable `v1.8.0` tag is the feature baseline. It contains all
 features and the 1.8 safety/build fixes. Upstream targets Godot 4.6 and carries
 4.7 build compatibility; this downstream preserves that source baseline while
 adapting only engine-facing incompatibilities proven against Redot 26.2's
-4.5.2 API lineage. The full adoption and downstream delta are recorded in
-`reports/api-diffs/limboai-newest-vs-selected.md`.
+4.5.2 API lineage. The current Redot adaptations are listed in
+`COMPATIBILITY.md`; source-build instructions are in `README.md`.
 
 ## Engine and ABI
 
@@ -67,12 +67,13 @@ The Godot 4.5.2 fixture remains historical API-lineage evidence for the former
 | Content | License | SHA-256 |
 | --- | --- | --- |
 | Core source, `LICENSE.md` | MIT-style | `BEED25D187C191D7FC30CC9EED7E040571C86BFEDC23BAC06CCAD05A99FF9B56` |
+| Redot C++ bindings, `LICENSE_REDOT_CPP.md` | MIT | `67F3B52502D83AD1737C89B0A1CFC5FF08DFFAFFE78715D45F906E99C43E1AE4` |
 | Logo, `LOGO_LICENSE.md` | CC BY 4.0 | `B3CF21D09F7E2191AED99AE8E3F57E8006BDA915F489A732B160BB3FA83E9D31` |
 | Demo graphics, `demo/LICENSE_ASSETS.md` | CC BY 4.0 | `98E9F4B4A73A158C17F4410E0E49EF21F15041D20CD69C8818AFDAFF62B9246C` |
 | Junction Bold | SIL OFL 1.1 | `C12EB45E8764A687B53DA149EEB9813D67762315FC3B42DE13B1A7A6E2240150` |
 | Knewave Regular | SIL OFL 1.1; reserved name `Knewave` | `80E6C7DA48890789171F46F07F97E207BB04C1299B663EDC506F951100F0F124` |
 
 The core package excludes `LimboAI.svg`, the documentation logo, and all demo
-content. The deterministic package manifest assigns every shipped path to a
-license and rejects caches, tests, build inputs, private-key markers, and local
-workspace paths.
+content. The deterministic package manifest records each shipped path, hash,
+size, and license classification. Binary and archive content checks are
+separate from the immutable input hashes recorded here.

@@ -23,7 +23,7 @@ Use the core archive produced by `scripts/package_release.py`:
 
 The core archive is independent of the separately licensed demo and logo. It
 contains editor and template-release libraries for Windows x86-64, Linux
-x86-64, and macOS universal when the complete desktop gate has passed.
+x86-64, and macOS universal as desktop build targets.
 The provided Linux binaries are built on Ubuntu 24.04 and require glibc 2.38
 or newer.
 
@@ -57,14 +57,14 @@ the 1.8 blackboard runtime-inspection and HSM transition-cargo APIs, plus a
 python -m unittest discover -s tests -p "test_*.py"
 ```
 
-Platform builds, binary audits, native Redot fixture runs, and clean package
-checks are automated by `.github/workflows/redot-desktop.yml`. Interactive
-editor, accessibility, and lifecycle checks remain explicit release gates;
-they are never inferred from a headless run.
+Platform builds, binary audits, and headless fixtures on built libraries run in
+`.github/workflows/redot-desktop.yml`; CI also compares assembled package bytes.
+Extracted-package execution, visible editor/accessibility/lifecycle checks, and
+native game exports require separate validation.
 
 ## Scope
 
-This release contains the complete LimboAI 1.8 feature baseline as a desktop,
+This source port contains the complete LimboAI 1.8 feature baseline as a desktop,
 single-precision GDExtension. It does not include a Redot engine-module build,
 C#/.NET support, or mobile/Web binaries. See `COMPATIBILITY.md` and
 `LIMITATIONS.md` for the precise contract.
@@ -80,8 +80,8 @@ LimboAI was created by Serhii Snitsaruk and contributors. Source code is
 distributed under the MIT-style terms in `LICENSE.md`. The upstream logo and
 demo graphics are CC BY 4.0 and are intentionally excluded from the core
 archive; their notices travel with the separate demo package. Bundled demo
-fonts retain the SIL Open Font License 1.1. See `THIRD_PARTY_NOTICES.md` and
-`demo/THIRD_PARTY_FONTS.md`.
+fonts retain SIL OFL 1.1; see `THIRD_PARTY_NOTICES.md`. Font notices are at
+`demo/THIRD_PARTY_FONTS.md` in source or `THIRD_PARTY_FONTS.md` in the demo ZIP.
 
 Upstream project: https://github.com/limbonaut/limboai
 

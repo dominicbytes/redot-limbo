@@ -1,6 +1,6 @@
 # Migration to Redot LimboAI
 
-## From upstream LimboAI 1.8.x on Godot
+## From upstream LimboAI 1.8.0 on Godot
 
 1. Commit or back up the project, including all `.tres`, `.tscn`, and custom
    task/state scripts.
@@ -9,13 +9,13 @@
    manifest from another build.
 4. Open the project in Redot 26.2 and wait for import to finish.
 5. Resolve script parse errors before resaving resources. Custom scripts keep
-   the upstream 1.8 `BTAction`, `BTCondition`, `BTDecorator`, `BTComposite`, and
+   the upstream 1.8.0 `BTAction`, `BTCondition`, `BTDecorator`, `BTComposite`, and
    `LimboState` base classes.
 6. Open representative behavior trees and HSM scenes, run them, and inspect
    blackboards and the debugger before committing Redot-generated metadata.
 7. Export a test build and confirm that the template-release library loads.
 
-The port preserves the upstream 1.8 public identities. It does not perform an
+The port preserves the upstream 1.8.0 public identities. It does not perform an
 automatic project rewrite, and the deterministic fixture is not a substitute
 for backing up project-specific content.
 
@@ -32,7 +32,7 @@ required.
 
 Automatic downgrade migration is unsupported. Later source may contain
 classes or serialized properties absent from the immutable 1.8.0 tag. Compare
-the exact resources and use an owner-reviewed conversion before resaving them.
+the exact resources and use a project-specific conversion before resaving them.
 
 ## Troubleshooting
 

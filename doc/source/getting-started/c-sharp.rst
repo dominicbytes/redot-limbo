@@ -1,13 +1,17 @@
+:orphan:
+
 .. _csharp:
 
 Using LimboAI with C#
 =====================
 
-Here's how you can use the module version with C# to write your tasks and states.
+C#/.NET is not supported by this Redot GDExtension fork. Use typed GDScript
+for custom tasks and states. The instructions below are retained solely as
+upstream Godot module reference; this fork ships no NuGet or GodotSharp packages.
 
 1. Locate LimboAI NuGet package files.
 
-Each provided build comes with a GodotSharp folder, which has packages under
+Upstream .NET module builds provide a GodotSharp folder with packages under
 "GodotSharp/Tools/nupkgs/". Note down the directory path; you'll need it in the next step.
 
 2. Add a local source for NuGet packages using the following command:
@@ -18,6 +22,5 @@ Each provided build comes with a GodotSharp folder, which has packages under
 
 3. Your C# project should be able to see LimboAI classes and compile.
 
-Regarding GDExtension, I can only confirm success with the module version and C#.
-Unfortunately, I haven't had any luck with the GDExtension version yet.
-If you've had success with GDExtension, please let me know via Discord or email.
+These upstream module steps do not enable C# support in this fork's
+GDExtension libraries.
