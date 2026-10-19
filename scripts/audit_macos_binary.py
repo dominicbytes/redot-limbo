@@ -9,6 +9,8 @@ import json
 from pathlib import Path
 import struct
 
+from content_policy import display_path, scan_blob, sanitize_text
+
 
 FAT_MAGIC = 0xCAFEBABE
 MACHO_64_LE = 0xFEEDFACF
@@ -17,6 +19,7 @@ CPU_NAMES = {
     0x01000007: "x86_64",
     0x0100000C: "arm64",
 }
+LC_SEGMENT_64 = 0x19
 LC_SYMTAB = 0x2
 LC_LOAD_DYLIB = 0xC
 LC_ID_DYLIB = 0xD
@@ -30,16 +33,6 @@ LC_BUILD_VERSION = 0x32
 PLATFORM_MACOS = 1
 EXPECTED_ARCHES = {"x86_64", "arm64"}
 EXPECTED_MIN_OS = "11.0.0"
-FORBIDDEN = (
-    b"D:\\",
-    b"/workspace",
-    b"<local workspace>",
-    b"LIMBOAI_FIXTURE",
-    b"ghp_",
-    b"BEGIN RSA PRIVATE",
-    b"BEGIN OPENSSH PRIVATE",
-    b"BEGIN EC PRIVATE",
-)
 DYLIB_COMMANDS = {
     LC_LOAD_DYLIB,
     LC_LOAD_WEAK_DYLIB,
@@ -89,6 +82,8 @@ def audit_thin(data: bytes, expected_cpu: int) -> dict[str, object]:
     minimum_os: list[str] = []
     signed = False
     symtab: tuple[int, int, int, int] | None = None
+    executable_sections = {}
+    section_count = 0
     cursor = 32
     for _ in range(ncmds):
         if cursor + 8 > command_end:
@@ -96,7 +91,18 @@ def audit_thin(data: bytes, expected_cpu: int) -> dict[str, object]:
         command, size = struct.unpack_from("<II", data, cursor)
         if size < 8 or cursor + size > command_end:
             raise ValueError(f"Invalid Mach-O load command size {size}")
-        if command in DYLIB_COMMANDS or command == LC_ID_DYLIB:
+        if command == LC_SEGMENT_64:
+            if size < 72:
+                raise ValueError("Truncated segment command")
+            initprot, nsects = struct.unpack_from("<II", data, cursor + 60)
+            if size != 72 + nsects * 80:
+                raise ValueError("Invalid segment section bounds")
+            for index in range(nsects):
+                section_count += 1
+                address, length = struct.unpack_from("<QQ", data, cursor + 72 + index * 80 + 32)
+                if initprot & 4:
+                    executable_sections[section_count] = (address, address + length)
+        elif command in DYLIB_COMMANDS or command == LC_ID_DYLIB:
             if size < 24:
                 raise ValueError("Truncated dylib load command")
             name_offset = struct.unpack_from("<I", data, cursor + 8)[0]
@@ -133,7 +139,7 @@ def audit_thin(data: bytes, expected_cpu: int) -> dict[str, object]:
         raise ValueError("Mach-O install identity is missing")
     for dependency in dependencies:
         if not dependency.startswith(("/usr/lib/", "/System/Library/")):
-            raise ValueError(f"Non-system dependency: {dependency}")
+            raise ValueError("Non-system dependency")
     if symtab is None:
         raise ValueError("Mach-O symbol table is missing")
 
@@ -143,10 +149,13 @@ def audit_thin(data: bytes, expected_cpu: int) -> dict[str, object]:
     symbols: set[str] = set()
     string_limit = stroff + strsize
     for index in range(nsyms):
-        string_index = struct.unpack_from("<I", data, symoff + index * 16)[0]
+        string_index, symbol_type, section, _description, value = struct.unpack_from("<IBBHQ", data, symoff + index * 16)
         if string_index == 0 or string_index >= strsize:
             continue
-        symbols.add(c_string(data, stroff + string_index, string_limit))
+        # N_SECT | N_EXT, excluding STAB/debug and private-external entries.
+        bounds = executable_sections.get(section)
+        if symbol_type == 0x0F and bounds is not None and bounds[0] <= value < bounds[1]:
+            symbols.add(c_string(data, stroff + string_index, string_limit))
     if "_limboai_init" not in symbols:
         raise ValueError("Exported symbol _limboai_init is missing")
 
@@ -165,12 +174,19 @@ def audit_thin(data: bytes, expected_cpu: int) -> dict[str, object]:
 
 
 def audit_library(path: Path) -> dict[str, object]:
-    data = path.read_bytes()
+    return audit_library_data(path.read_bytes(), display_path(path))
+
+
+def audit_library_data(data: bytes, name: str) -> dict[str, object]:
+    hits = scan_blob(name, data)
+    if hits:
+        file, category = hits[0]
+        raise ValueError(f"Forbidden content in {file}: {category}")
     if len(data) < 8:
-        raise ValueError(f"Truncated universal binary: {path}")
+        raise ValueError("Truncated universal binary")
     magic, count = struct.unpack_from(">II", data, 0)
     if magic != FAT_MAGIC:
-        raise ValueError(f"Not a universal Mach-O binary: {path}")
+        raise ValueError("Not a universal Mach-O binary")
     if count != len(EXPECTED_ARCHES):
         raise ValueError(f"Expected two Mach-O slices, got {count}")
     header_end = 8 + count * 20
@@ -198,18 +214,15 @@ def audit_library(path: Path) -> dict[str, object]:
     architectures = {item["architecture"] for item in slices}
     if architectures != EXPECTED_ARCHES:
         raise ValueError(f"Unexpected architecture set: {sorted(architectures)}")
-    expected_install_id = "@rpath/" + path.name
+    expected_install_id = "@rpath/" + Path(name).name
     install_ids = {item["install_id"] for item in slices}
     if install_ids != {expected_install_id}:
         raise ValueError(
             f"Expected install identity {expected_install_id!r}, got {sorted(install_ids)}"
         )
 
-    hits = [marker.decode("ascii", errors="replace") for marker in FORBIDDEN if marker in data]
-    if hits:
-        raise ValueError(f"Forbidden embedded strings: {hits}")
     return {
-        "path": str(path.resolve()),
+        "path": name,
         "sha256": sha256(data),
         "bytes": len(data),
         "architectures": sorted(architectures),
@@ -228,4 +241,9 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    try:
+        raise SystemExit(main())
+    except (OSError, ValueError) as error:
+        import sys
+        print("FAIL: " + sanitize_text(str(error)), file=sys.stderr)
+        raise SystemExit(2)

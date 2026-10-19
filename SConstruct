@@ -73,7 +73,7 @@ def sha256_file(path):
 def verify_binding_checkout(profile):
     binding_dir = os.path.abspath("godot-cpp")
     if not os.path.isdir(binding_dir):
-        print("Locked binding checkout not found: " + binding_dir)
+        print("Locked binding checkout not found: godot-cpp/")
         print("Populate godot-cpp/ with the exact checkout recorded in deps.env.")
         Exit(1)
 
@@ -122,6 +122,24 @@ def verify_binding_checkout(profile):
     print("Verified locked " + profile + " binding: " + actual_ref)
 
 
+def verify_effective_binding_inputs(env, profile):
+    # The binding has now resolved command-line, custom.py, and profile options.
+    binding_dir = os.path.abspath("godot-cpp")
+    extension_dir = env.get("gdextension_dir", os.path.join(binding_dir, "gdextension"))
+    api_path = env.get("custom_api_file", os.path.join(extension_dir, "extension_api.json"))
+    if profile == "redot":
+        checks = (
+            (api_path, "REDOT_EXTENSION_API_SHA256"),
+            (os.path.join(extension_dir, "gdextension_interface.h"), "REDOT_GDEXTENSION_INTERFACE_SHA256"),
+        )
+    else:
+        checks = ((api_path, "GODOT_CPP_ORACLE_API_SHA256"),)
+    for path, lock in checks:
+        if sha256_file(path) != read_dependency_lock(lock):
+            print("Effective binding input mismatch: " + lock)
+            Exit(1)
+
+
 binding_profile = GetOption("binding_profile")
 verify_binding_checkout(binding_profile)
 
@@ -158,10 +176,14 @@ for o in vars.options:
 
 env = SConscript("godot-cpp/SConstruct")
 
-# Error macros embed __FILE__. Keep Windows release artifacts independent of the
-# checkout location while preserving paths relative to this source root.
-if env["platform"] == "windows":
+verify_effective_binding_inputs(env, binding_profile)
+
+# These environments also own the binding compilation nodes. Map source paths
+# before any compilation actions execute, using the selected compiler family.
+if env.get("is_msvc", False):
     env.Append(CCFLAGS=["/d1trimfile:" + os.path.abspath(".")])
+else:
+    env.Append(CCFLAGS=["-ffile-prefix-map=" + os.path.abspath(".") + "=."])
 
 # Generate version header.
 print("Generating LimboAI version header...")

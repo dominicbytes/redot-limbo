@@ -1,4 +1,4 @@
-name: 🔌 GDExtension
+name: Upstream Godot reference (unsupported on Redot) - gdextension
 on:
   workflow_call:
     inputs:
@@ -30,6 +30,7 @@ env:
 
 jobs:
   gdextension:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     runs-on: ${{ matrix.opts.runner }}
     name: ${{ matrix.opts.name }}
     outputs:
@@ -350,6 +351,7 @@ jobs:
           path: out/*
 
   package-extension:
+    if: ${{ github.repository == 'limbonaut/limboai' }}
     name: 📦 Package extension
     runs-on: ubuntu-latest
     needs: gdextension

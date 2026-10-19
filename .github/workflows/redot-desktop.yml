@@ -90,20 +90,35 @@ jobs:
           $editor = "build/ci-addon/addons/limboai/bin/liblimboai.windows.editor.x86_64.dll"
           $release = "build/ci-addon/addons/limboai/bin/liblimboai.windows.template_release.x86_64.dll"
           & scripts/audit_windows_binary.ps1 -Library @($editor, $release) | Tee-Object build/windows-binary-audit.log
+          if ($LASTEXITCODE -ne 0) { throw "Windows binary audit failed" }
           python scripts/run_fixture.py --engine $env:REDOT_BIN --addon-project build/ci-addon --output ../build/redot-limboai/ci/windows-editor --label ci-windows-editor
           if ($LASTEXITCODE -ne 0) { throw "Windows editor fixture failed" }
           python scripts/run_fixture.py --engine $env:REDOT_BIN --addon-project build/ci-addon --output ../build/redot-limboai/ci/windows-release --label ci-windows-release --force-windows-release-library
           if ($LASTEXITCODE -ne 0) { throw "Windows release fixture failed" }
 
-      - name: Upload Windows evidence
+      - name: Remove MSVC linker byproducts from the addon
         if: always()
+        shell: pwsh
+        run: |
+          # Import libraries and export files are not part of the addon and embed object-file paths.
+          Get-ChildItem build/ci-addon/addons/limboai/bin -Recurse -File -Include *.exp, *.lib, *.pdb, *.ilk -ErrorAction SilentlyContinue | Remove-Item -Force
+
+      - name: Scan Windows evidence before upload
+        id: scan_windows_evidence
+        if: always()
+        run: |
+          python scripts/content_policy.py --evidence build/ci-addon/addons/limboai build/windows-binary-audit.log ../build/redot-limboai/ci/windows-*/run-summary.json ../build/redot-limboai/ci/windows-*/*.log
+
+      - name: Upload Windows evidence
+        if: always() && steps.scan_windows_evidence.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: redot-limboai-windows
           path: |
             plugins/redot-limboai/build/ci-addon/addons/limboai
             plugins/redot-limboai/build/windows-binary-audit.log
-            plugins/build/redot-limboai/ci/windows-*
+            plugins/build/redot-limboai/ci/windows-*/run-summary.json
+            plugins/build/redot-limboai/ci/windows-*/*.log
           retention-days: 14
 
   linux-x86-64:
@@ -111,6 +126,7 @@ jobs:
     timeout-minutes: 70
     defaults:
       run:
+        shell: bash
         working-directory: plugins/redot-limboai
     steps:
       - name: Checkout source
@@ -155,22 +171,29 @@ jobs:
           mkdir -p build/ci-addon
           python3 -m SCons --project=build/ci-addon platform=linux target=editor arch=x86_64 -j2
           python3 -m SCons --project=build/ci-addon platform=linux target=template_release arch=x86_64 -j2
-          sh scripts/audit_linux_binary.sh \
+          bash scripts/audit_linux_binary.sh \
             build/ci-addon/addons/limboai/bin/liblimboai.linux.editor.x86_64.so \
             build/ci-addon/addons/limboai/bin/liblimboai.linux.template_release.x86_64.so \
             | tee build/linux-binary-audit.log
           python3 scripts/run_fixture.py --engine "$REDOT_BIN" --addon-project build/ci-addon --output ../build/redot-limboai/ci/linux-editor --label ci-linux-editor
           python3 scripts/run_fixture.py --engine "$REDOT_BIN" --addon-project build/ci-addon --output ../build/redot-limboai/ci/linux-release --label ci-linux-release --force-linux-release-library
 
-      - name: Upload Linux evidence
+      - name: Scan Linux evidence before upload
+        id: scan_linux_evidence
         if: always()
+        run: |
+          python3 scripts/content_policy.py --evidence build/ci-addon/addons/limboai build/linux-binary-audit.log ../build/redot-limboai/ci/linux-*/run-summary.json ../build/redot-limboai/ci/linux-*/*.log
+
+      - name: Upload Linux evidence
+        if: always() && steps.scan_linux_evidence.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: redot-limboai-linux
           path: |
             plugins/redot-limboai/build/ci-addon/addons/limboai
             plugins/redot-limboai/build/linux-binary-audit.log
-            plugins/build/redot-limboai/ci/linux-*
+            plugins/build/redot-limboai/ci/linux-*/run-summary.json
+            plugins/build/redot-limboai/ci/linux-*/*.log
           retention-days: 14
 
   macos-universal:
@@ -178,6 +201,7 @@ jobs:
     timeout-minutes: 90
     defaults:
       run:
+        shell: bash
         working-directory: plugins/redot-limboai
     steps:
       - name: Checkout source
@@ -231,10 +255,6 @@ jobs:
             test "$archs" = "x86_64 arm64" || test "$archs" = "arm64 x86_64"
             nm -gj "$library" | grep '^_limboai_init$'
             otool -L "$library"
-            if strings -a "$library" | grep -E '/Users/runner|/workspace|LIMBOAI_FIXTURE|ghp_|BEGIN (RSA|OPENSSH|EC) PRIVATE'; then
-              echo "Forbidden embedded string in $library" >&2
-              exit 4
-            fi
           done
           build/ci-venv/bin/python scripts/audit_macos_binary.py \
             build/ci-addon/addons/limboai/bin/liblimboai.macos.editor.framework/liblimboai.macos.editor \
@@ -243,15 +263,22 @@ jobs:
           build/ci-venv/bin/python scripts/run_fixture.py --engine "$REDOT_BIN" --addon-project build/ci-addon --output ../build/redot-limboai/ci/macos-editor --label ci-macos-editor
           build/ci-venv/bin/python scripts/run_fixture.py --engine "$REDOT_BIN" --addon-project build/ci-addon --output ../build/redot-limboai/ci/macos-release --label ci-macos-release --force-macos-release-library
 
-      - name: Upload macOS evidence
+      - name: Scan macOS evidence before upload
+        id: scan_macos_evidence
         if: always()
+        run: |
+          build/ci-venv/bin/python scripts/content_policy.py --evidence build/ci-addon/addons/limboai build/macos-binary-audit.log ../build/redot-limboai/ci/macos-*/run-summary.json ../build/redot-limboai/ci/macos-*/*.log
+
+      - name: Upload macOS evidence
+        if: always() && steps.scan_macos_evidence.outcome == 'success'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: redot-limboai-macos
           path: |
             plugins/redot-limboai/build/ci-addon/addons/limboai
             plugins/redot-limboai/build/macos-binary-audit.log
-            plugins/build/redot-limboai/ci/macos-*
+            plugins/build/redot-limboai/ci/macos-*/run-summary.json
+            plugins/build/redot-limboai/ci/macos-*/*.log
           retention-days: 14
 
   deterministic-packages:

@@ -9,9 +9,13 @@ import json
 from pathlib import Path
 import re
 import subprocess
+import struct
 import sys
 from typing import Callable
 import zipfile
+
+from content_policy import display_path, scan_blob, sanitize_text
+from audit_macos_binary import audit_library_data
 
 
 VERSION = "1.8.0+redot.26.2.1"
@@ -46,8 +50,97 @@ def sha256(data: bytes) -> str:
 
 def file_bytes(path: Path) -> bytes:
     if not path.is_file():
-        raise PackageError(f"Required package input is missing: {path}")
+        raise PackageError(f"Required package input is missing: {display_path(path)}")
     return path.read_bytes()
+
+
+def valid_pe(data: bytes) -> bool:
+    if len(data) < 64 or data[:2] != b"MZ":
+        return False
+    offset = struct.unpack_from("<I", data, 60)[0]
+    if offset < 64 or offset + 24 > len(data) or data[offset:offset + 4] != b"PE\0\0":
+        return False
+    machine, count, _stamp, symbols, symbol_count, optional_size, flags = struct.unpack_from("<HHIIIHH", data, offset + 4)
+    optional = offset + 24
+    table = optional + optional_size
+    if (machine != 0x8664 or not flags & 0x2000 or not count or optional_size < 112
+            or table + count * 40 > len(data) or struct.unpack_from("<H", data, optional)[0] != 0x20B):
+        return False
+    image_size, headers_size = struct.unpack_from("<II", data, optional + 56)
+    directories = struct.unpack_from("<I", data, optional + 108)[0]
+    if not table + count * 40 <= headers_size <= len(data) or directories * 8 > optional_size - 112:
+        return False
+    if symbols or symbol_count:
+        strings = symbols + symbol_count * 18
+        if not symbols or strings + 4 > len(data):
+            return False
+        strings_size = struct.unpack_from("<I", data, strings)[0]
+        if strings_size < 4 or strings + strings_size > len(data):
+            return False
+    executable_payload = False
+    for index in range(count):
+        section = table + index * 40
+        virtual_size, address, size, start = struct.unpack_from("<IIII", data, section + 8)
+        attributes = struct.unpack_from("<I", data, section + 36)[0]
+        if address + max(virtual_size, size) > image_size:
+            return False
+        if size and (start < headers_size or start + size > len(data)):
+            return False
+        executable_payload |= bool(size and attributes & 0x20000000)
+    return executable_payload
+
+
+def valid_elf(data: bytes) -> bool:
+    if len(data) < 64 or data[:7] != b"\x7fELF\x02\x01\x01":
+        return False
+    kind, machine, version, _entry, programs, sections, _flags, header_size, program_size, program_count, section_size, section_count, names = struct.unpack_from("<HHIQQQIHHHHHH", data, 16)
+    if (kind != 3 or machine != 62 or version != 1 or header_size != 64
+            or program_size != 56 or not program_count or program_count == 0xFFFF
+            or programs < 64 or programs + program_size * program_count > len(data)):
+        return False
+    if sections or section_count:
+        if (sections < 64 or not section_count or section_size != 64
+                or sections + section_size * section_count > len(data) or names >= section_count):
+            return False
+    elif names:
+        return False
+    executable_payload = False
+    for index in range(program_count):
+        kind, flags, start, _address, _physical, size, memory_size, _alignment = struct.unpack_from("<IIQQQQQQ", data, programs + index * 56)
+        if start + size > len(data) or (kind == 1 and memory_size < size):
+            return False
+        executable_payload |= bool(kind == 1 and flags & 1 and size)
+    for index in range(section_count):
+        _name, kind, _flags, _address, start, size, link, _info, _alignment, entry_size = struct.unpack_from("<IIQQQQIIQQ", data, sections + index * 64)
+        if (kind not in (0, 8) and start + size > len(data)) or link >= section_count:
+            return False
+        if entry_size and size % entry_size:
+            return False
+    return executable_payload
+
+
+def library_bytes(path: Path) -> bytes:
+    data = file_bytes(path)
+    if path.suffix == ".dll":
+        valid = valid_pe(data)
+    elif path.suffix == ".so":
+        valid = valid_elf(data)
+    else:
+        try:
+            audit_library_data(data, path.name)
+        except ValueError as error:
+            raise PackageError(f"Invalid library {display_path(path)}: Mach-O audit failed") from error
+        valid = True
+    if not valid:
+        raise PackageError(f"Invalid or truncated library: {display_path(path)}")
+    return data
+
+
+def icon_import(resource: str) -> bytes:
+    return (f'[remap]\n\nimporter="texture"\ntype="CompressedTexture2D"\n\n'
+            f'[deps]\n\nsource_file="res://{resource}"\n\n[params]\n\n'
+            'editor/scale_with_editor_scale=true\n'
+            'editor/convert_colors_with_editor_theme=true\n').encode("utf-8")
 
 
 def add(entries: dict[str, bytes], destination: str, data: bytes) -> None:
@@ -140,12 +233,14 @@ def collect_core(
         ),
     )
     for source, destination in binary_inputs:
-        add(entries, destination, file_bytes(source))
+        add(entries, destination, library_bytes(source))
 
     for icon in sorted((source_root / "icons").glob("*.svg")):
         if icon.name == "LimboAI.svg":
             continue
-        add(entries, f"addons/limboai/icons/{icon.name}", file_bytes(icon))
+        resource = f"addons/limboai/icons/{icon.name}"
+        add(entries, resource, file_bytes(icon))
+        add(entries, resource + ".import", icon_import(resource))
     for name in CORE_DOCS:
         add(entries, f"addons/limboai/{name}", file_bytes(source_root / name))
     add(entries, "addons/limboai/version.txt", (VERSION + "\n").encode("utf-8"))
@@ -177,17 +272,11 @@ def collect_demo(source_root: Path) -> dict[str, bytes]:
 
 
 def scan_entries(entries: dict[str, bytes], source_root: Path) -> None:
-    forbidden_tokens = (
-        str(source_root.resolve()).encode("utf-8"),
-        str(source_root.resolve()).replace("\\", "/").encode("utf-8"),
-        b"/workspace/plugins/redot-limboai",
-        b"BEGIN PRIVATE KEY",
-        b"fixture-result.json",
-    )
     for path, data in entries.items():
-        for token in forbidden_tokens:
-            if token and token in data:
-                raise PackageError(f"Forbidden content token in {path}: {token!r}")
+        hits = scan_blob(path, data)
+        if hits:
+            file, category = hits[0]
+            raise PackageError(f"Forbidden content in {file}: {category}")
 
 
 def write_zip(path: Path, entries: dict[str, bytes]) -> None:
@@ -212,7 +301,7 @@ def git_value(source_root: Path, *arguments: str) -> str:
         text=True,
     )
     if result.returncode != 0:
-        raise PackageError(result.stderr.strip() or "Git command failed")
+        raise PackageError("Git command failed")
     return result.stdout.strip()
 
 
@@ -287,7 +376,7 @@ def main() -> int:
         f"{report['archives']['demo']['sha256']}  {demo_zip.name}\n",
         encoding="utf-8",
     )
-    print(json.dumps({"status": report["status"], "report": str(report_path)}))
+    print(json.dumps({"status": report["status"], "report": report_path.name}))
     return 0
 
 
@@ -295,5 +384,5 @@ if __name__ == "__main__":
     try:
         raise SystemExit(main())
     except (OSError, PackageError, subprocess.SubprocessError) as error:
-        print(f"FAIL: {error}", file=sys.stderr)
+        print("FAIL: " + sanitize_text(str(error)), file=sys.stderr)
         raise SystemExit(2)

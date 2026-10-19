@@ -299,6 +299,22 @@ func _test_builtin_task_semantics() -> void:
 	parallel.initialize(agent, blackboard, agent)
 	var parallel_status: int = parallel.execute(FIXED_DELTA)
 
+	parallel.abort()
+	var completed_lifecycle_ok := true
+	for action in [sequence_success, sequence_failure, selector_failure, selector_success, invert_child, parallel_running_a, parallel_success, parallel_running_b]:
+		completed_lifecycle_ok = completed_lifecycle_ok and action.entries == 1 and action.exits == 1
+	var skipped_lifecycle_ok: bool = sequence_skipped.entries == 0 and sequence_skipped.exits == 0 and selector_skipped.entries == 0 and selector_skipped.exits == 0
+	var parallel_abort_ok: bool = parallel_running_a.status == BT.FRESH and parallel_running_b.status == BT.FRESH
+
+	var running := StatusAction.new()
+	running.result = BT.RUNNING
+	running.initialize(agent, blackboard, agent)
+	var running_status: int = running.execute(FIXED_DELTA)
+	var running_lifecycle_ok: bool = running.entries == 1 and running.exits == 0
+	running.abort()
+	running.abort()
+	var abort_ok: bool = running_status == BT.RUNNING and running_lifecycle_ok and running.entries == 1 and running.exits == 1 and running.status == BT.FRESH
+
 	var wait_ticks := BTWaitTicks.new()
 	wait_ticks.num_ticks = 2
 	wait_ticks.initialize(agent, blackboard, agent)
@@ -320,6 +336,10 @@ func _test_builtin_task_semantics() -> void:
 		and selector_skipped.status == BT.FRESH
 		and invert_status == BT.FAILURE
 		and parallel_status == BT.SUCCESS
+		and completed_lifecycle_ok
+		and skipped_lifecycle_ok
+		and parallel_abort_ok
+		and abort_ok
 		and wait_statuses == [BT.RUNNING, BT.RUNNING, BT.SUCCESS]
 	)
 	_record_case("builtin_task_semantics", passed, {
@@ -330,6 +350,11 @@ func _test_builtin_task_semantics() -> void:
 		"selector_child_statuses": [selector_failure.status, selector_success.status, selector_skipped.status],
 		"invert": invert_status,
 		"parallel": parallel_status,
+		"completed_lifecycle": completed_lifecycle_ok,
+		"skipped_lifecycle": skipped_lifecycle_ok,
+		"parallel_abort": parallel_abort_ok,
+		"abort": abort_ok,
+		"abort_counters": [running.entries, running.ticks, running.exits],
 		"wait_ticks": wait_statuses,
 	})
 	agent.free()
@@ -528,4 +553,4 @@ func _write_result() -> void:
 		return
 	file.store_string(JSON.stringify(result, "\t") + "\n")
 	file.close()
-	print("LIMBOAI_FIXTURE_RESULT %s" % JSON.stringify({"passed": result.passed, "case_count": _cases.size(), "failures": _failures}))
+	print("LIMBOAI_FIXTURE_RESULT %s" % JSON.stringify(result))

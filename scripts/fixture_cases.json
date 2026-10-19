@@ -1,0 +1,15 @@
+[
+  "class_registration",
+  "blackboard_contract",
+  "blackboard_runtime_inspection",
+  "resource_roundtrip",
+  "direct_tree_execution",
+  "clone_deep_copy",
+  "builtin_task_semantics",
+  "bt_player",
+  "multi_agent_isolation",
+  "custom_task_categories",
+  "hsm_transition_cargo",
+  "hsm_and_bt_state",
+  "runtime_view_and_performance"
+]
