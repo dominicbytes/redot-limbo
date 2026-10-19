@@ -54,6 +54,7 @@ func _run() -> void:
 	_test_class_registration()
 	_test_blackboard_contract()
 	_test_blackboard_runtime_inspection()
+	_test_blackboard_binding_roots()
 	_test_hsm_transition_completion()
 	_test_hsm_exit_transaction()
 	var tree: BehaviorTree = _test_resource_roundtrip()
@@ -692,3 +693,61 @@ func _test_hsm_exit_transaction() -> void:
 		hsm.set_active(false)
 		host.free()
 	_record_case("hsm_exit_transaction", passed, {"observations": observations})
+
+
+func _test_blackboard_binding_roots() -> void:
+	var scene := Node.new()
+	root.add_child(scene)
+	var scene_target := Node.new()
+	scene_target.name = "Target"
+	scene_target.process_priority = 17
+	scene.add_child(scene_target)
+	var agent := Node.new()
+	scene.add_child(agent)
+	var agent_target := Node.new()
+	agent_target.name = "Target"
+	agent_target.process_priority = 29
+	agent.add_child(agent_target)
+	var base := BlackboardPlan.new()
+	base.set("var/priority/name", "priority")
+	base.set("var/priority/type", TYPE_INT)
+	base.set("var/priority/value", 42)
+	base.set("binding/priority", NodePath("Target:process_priority"))
+	base.set("var/target/name", "target")
+	base.set("var/target/type", TYPE_NODE_PATH)
+	base.set("var/target/value", NodePath("Target"))
+	var derived := BlackboardPlan.new()
+	derived.set_base_plan(base)
+	var local: Blackboard = base.create_blackboard(agent)
+	var inherited: Blackboard = derived.create_blackboard(agent)
+	var explicit: Blackboard = derived.create_blackboard(agent, null, scene)
+	var populated := Blackboard.new()
+	derived.populate_blackboard(populated, true, agent)
+	var passed: bool = local.get_var(&"priority") == 29 and inherited.get_var(&"priority") == 29 and explicit.get_var(&"priority") == 17 and populated.get_var(&"priority") == 29
+	explicit.set_var(&"priority", 18)
+	passed = passed and scene_target.process_priority == 18 and agent_target.process_priority == 29
+	var scope := BTNewScope.new()
+	scope.blackboard_plan = derived
+	scope.add_child(BTFail.new())
+	scope.initialize(agent, Blackboard.new(), scene)
+	passed = passed and scope.get_blackboard().get_var(&"priority") == 18 and scope.get_blackboard().get_var(&"target") == scene_target
+	var tree := BehaviorTree.new()
+	tree.blackboard_plan = base
+	tree.root_task = BTFail.new()
+	var subtree := BTSubtree.new()
+	subtree.subtree = tree
+	subtree.initialize(agent, Blackboard.new(), scene)
+	passed = passed and subtree.get_blackboard().get_var(&"priority") == 18 and subtree.get_blackboard().get_var(&"target") == scene_target
+	base.prefetch_nodepath_vars = false
+	var print_errors: bool = Engine.print_error_messages
+	Engine.print_error_messages = false
+	var unbound: Blackboard = base.create_blackboard(null)
+	Engine.print_error_messages = print_errors
+	passed = passed and unbound.get_var(&"priority") == 42
+	_record_case("blackboard_binding_roots", passed, {
+		"local": local.get_var(&"priority"), "inherited": inherited.get_var(&"priority"),
+		"explicit": explicit.get_var(&"priority"), "populated": populated.get_var(&"priority"),
+		"scope": scope.get_blackboard().get_var(&"priority"), "subtree": subtree.get_blackboard().get_var(&"priority"),
+		"unbound": unbound.get_var(&"priority"),
+	})
+	scene.free()
