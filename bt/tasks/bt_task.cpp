@@ -201,9 +201,10 @@ bool BTTask::_has_valid_context() const {
 #ifdef LIMBOAI_GDEXTENSION
 	// Initialization accepts Nodes only. Existence checks need no instance binding or cast.
 	return internal::gdextension_interface_object_get_instance_from_id(data.agent_id) != nullptr &&
-			internal::gdextension_interface_object_get_instance_from_id(data.scene_root_id) != nullptr;
+			(data.scene_root_id == data.agent_id || internal::gdextension_interface_object_get_instance_from_id(data.scene_root_id) != nullptr);
 #else
-	return ObjectDB::get_instance(data.agent_id) != nullptr && ObjectDB::get_instance(data.scene_root_id) != nullptr;
+	return ObjectDB::get_instance(data.agent_id) != nullptr &&
+			(data.scene_root_id == data.agent_id || ObjectDB::get_instance(data.scene_root_id) != nullptr);
 #endif
 }
 
