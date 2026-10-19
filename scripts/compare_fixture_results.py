@@ -9,6 +9,7 @@ from pathlib import Path
 import sys
 
 from fixture_result import validate_result
+from content_policy import display_path, sanitize, sanitize_text
 
 
 def load_result(path: Path) -> dict:
@@ -44,7 +45,7 @@ def main() -> int:
         try:
             result = load_result(path)
         except (OSError, ValueError) as error:
-            differences.append(f"{label}: invalid input ({type(error).__name__})")
+            differences.append(f"{label}: invalid input ({sanitize_text(str(error))})")
         else:
             if label == "left":
                 left, left_cases = result, normalized_cases(result)
@@ -57,8 +58,8 @@ def main() -> int:
     comparison = {
         "schema_version": 1,
         "passed": not differences,
-        "left": str(args.left.resolve()),
-        "right": str(args.right.resolve()),
+        "left": display_path(args.left),
+        "right": display_path(args.right),
         "left_engine": left.get("engine"),
         "right_engine": right.get("engine"),
         "differences": differences,
@@ -68,10 +69,15 @@ def main() -> int:
         },
     }
     args.output.parent.mkdir(parents=True, exist_ok=True)
+    comparison = sanitize(comparison)
     args.output.write_text(json.dumps(comparison, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({"passed": comparison["passed"], "output": str(args.output)}))
+    print(json.dumps({"passed": comparison["passed"], "output": display_path(args.output)}))
     return 0 if comparison["passed"] else 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except (OSError, ValueError) as error:
+        print("FAIL: " + sanitize_text(str(error)), file=sys.stderr)
+        sys.exit(2)

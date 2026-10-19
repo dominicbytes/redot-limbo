@@ -23,6 +23,13 @@ class WorkflowGuardTests(unittest.TestCase):
             for block in blocks:
                 self.assertTrue(block.startswith("    if: ${{ github.repository == 'limbonaut/limboai' }}\n"))
 
+    def test_uploads_are_gated_on_scanned_evidence_and_exclude_projects(self):
+        text = (WORKFLOWS / "redot-desktop.yml").read_text(encoding="utf-8")
+        for platform in ("windows", "linux", "macos"):
+            self.assertIn(f"steps.scan_{platform}_evidence.outcome == 'success'", text)
+            self.assertIn(f"ci/{platform}-*/run-summary.json", text)
+            self.assertNotIn(f"ci/{platform}-*" + chr(10), text)
+
 
 if __name__ == "__main__":
     unittest.main()

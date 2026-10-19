@@ -15,6 +15,7 @@ import sys
 import time
 
 from fixture_result import validate_result
+from content_policy import sanitize, sanitize_text
 
 
 FAILURE_PATTERN = re.compile(
@@ -175,7 +176,7 @@ def main() -> int:
     try:
         output.relative_to(allowed_output_root)
     except ValueError:
-        parser.error(f"--output must be inside {allowed_output_root}")
+        parser.error("--output must be inside <build>/redot-limboai")
     if output == allowed_output_root:
         parser.error("--output must name a run directory, not the shared build root")
     project_root = output / "project"
@@ -250,6 +251,10 @@ def main() -> int:
         import_return_code, import_output, import_timed_out, import_duration = run_command(
             import_command, project_root, environment, args.timeout
         )
+    replacements = [(str(engine), "$REDOT_BIN"), (str(project_root), "<fixture project>"),
+                    (str(state_root), "<fixture state>"), (str(addon_project), "<addon project>"),
+                    (str(source_root), "<repo clone>")]
+    import_output = sanitize_text(import_output, replacements)
     import_log_path.write_text(import_output, encoding="utf-8")
     if import_return_code == 0 and not import_timed_out:
         return_code, output_text, timed_out, duration = run_command(
@@ -262,6 +267,7 @@ def main() -> int:
             import_timed_out,
             0.0,
         )
+    output_text = sanitize_text(output_text, replacements)
     log_path.write_text(output_text, encoding="utf-8")
 
     result_path = None
@@ -287,6 +293,10 @@ def main() -> int:
             validate_result(result)
         except ValueError as error:
             result_error = str(error)
+
+    if result_path is not None and result_path.is_file():
+        result_path.write_text(sanitize_text(result_path.read_text(encoding="utf-8"), replacements), encoding="utf-8")
+    result = sanitize(result, replacements)
 
     suspicious_lines = [
         line
@@ -316,32 +326,37 @@ def main() -> int:
         "return_code": return_code,
         "timed_out": timed_out,
         "duration_seconds": round(duration, 6),
-        "engine": {"path": str(engine), "sha256": sha256(engine)},
-        "addon_project": str(addon_project),
+        "engine": {"path": "$REDOT_BIN", "sha256": sha256(engine)},
+        "addon_project": "<addon project>",
         "addon_manifest_sha256": sha256(
             addon_project / "addons" / "limboai" / "bin" / "limboai.gdextension"
         ),
-        "selected_library": str(selected_library) if selected_library else None,
+        "selected_library": selected_library.relative_to(project_root).as_posix() if selected_library else None,
         "selected_library_sha256": sha256(selected_library) if selected_library else None,
         "forced_release_platform": forced_release_platform,
-        "result_path": str(result_path) if result_path else None,
+        "result_path": "<fixture state>/" + result_path.relative_to(state_root).as_posix() if result_path else None,
         "result_source": result_source,
         "result_error": result_error,
         "result": result,
         "suspicious_log_lines": suspicious_lines,
     }
+    summary = sanitize(summary, replacements)
     summary_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
-    print(json.dumps({
+    print(json.dumps(sanitize({
         "passed": passed,
         "label": args.label,
-        "summary": str(summary_path),
-        "import_log": str(import_log_path),
-        "log": str(log_path),
+        "summary": "run-summary.json",
+        "import_log": "editor-import.log",
+        "log": "fixture.log",
         "return_code": return_code,
         "suspicious_log_lines": len(suspicious_lines),
-    }))
+    }, replacements)))
     return 0 if passed else 1
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    try:
+        sys.exit(main())
+    except (OSError, ValueError, RuntimeError) as error:
+        print("FAIL: " + sanitize_text(str(error)), file=sys.stderr)
+        sys.exit(2)

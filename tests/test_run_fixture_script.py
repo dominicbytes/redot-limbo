@@ -7,6 +7,9 @@ import unittest
 import sys
 import json
 from copy import deepcopy
+from unittest.mock import patch
+import contextlib
+import io
 
 
 SCRIPT_PATH = Path(__file__).resolve().parents[1] / "scripts" / "run_fixture.py"
@@ -130,6 +133,24 @@ class ResultContractTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 validate_result(result)
 
+    def test_comparator_cli_rejects_matching_empty_failed_and_compact_documents(self):
+        import compare_fixture_results as compare
+        documents = [{}, {"passed": False, "result": successful_result()},
+                     {"passed": True, "case_count": 13, "failures": []}]
+        missing = successful_result()
+        missing["cases"].pop()
+        documents.append(missing)
+        for document in documents:
+            with self.subTest(document=document), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                left, right, output = root / "left.json", root / "right.json", root / "comparison.json"
+                left.write_text(json.dumps(document))
+                right.write_text(json.dumps(document))
+                with patch.object(sys, "argv", ["compare", str(left), str(right), "--output", str(output)]), \
+                     contextlib.redirect_stdout(io.StringIO()):
+                    self.assertEqual(compare.main(), 1)
+                self.assertFalse(json.loads(output.read_text())["passed"])
+
     def test_comparator_rejects_failed_outer_run_and_invalid_json(self):
         import compare_fixture_results as compare
         with tempfile.TemporaryDirectory() as temporary:
@@ -144,6 +165,57 @@ class ResultContractTests(unittest.TestCase):
                 compare.load_result(path)
             path.write_text(json.dumps(successful_result()))
             self.assertEqual(compare.load_result(path), successful_result())
+
+
+class EvidenceWriterTests(unittest.TestCase):
+    def test_file_and_stdout_paths_use_identical_validation_and_safe_evidence(self):
+        from content_policy import text_categories
+        for route in ("file", "stdout"):
+            for valid in (False, True):
+                with self.subTest(route=route, valid=valid), tempfile.TemporaryDirectory() as temporary:
+                    root = Path(temporary)
+                    source = root / "source"
+                    fixture = source / "tests/fixture"
+                    fixture.mkdir(parents=True)
+                    (fixture / "project.godot").write_text("config_version=5")
+                    addon = root / "addon"
+                    bin_dir = addon / "addons/limboai/bin"
+                    bin_dir.mkdir(parents=True)
+                    (bin_dir / "limboai.gdextension").write_text("[configuration]")
+                    engine = root / "engine"
+                    engine.write_bytes(b"engine")
+                    output = root / "build/redot-limboai/run"
+                    document = successful_result() if valid else {"passed": True, "case_count": 13}
+                    if valid:
+                        document["cases"][0]["details"]["path"] = str(source)
+                    commands = []
+                    def run(command, project, environment, timeout):
+                        commands.append(command)
+                        if "--editor" in command:
+                            return 0, "Imported " + str(source), False, 0.1
+                        if route == "file":
+                            result_file = output / "state/Roaming/Redot/app_userdata/fixture-result.json"
+                            result_file.parent.mkdir(parents=True, exist_ok=True)
+                            result_file.write_text(json.dumps(document))
+                        return 0, RUN_FIXTURE.RESULT_PREFIX + json.dumps(document), False, 0.1
+                    argv = ["run_fixture.py", "--engine", str(engine), "--addon-project", str(addon),
+                            "--output", str(output), "--label", "test"]
+                    with patch.object(RUN_FIXTURE, "__file__", str(source / "scripts/run_fixture.py")), \
+                         patch.object(RUN_FIXTURE, "run_command", side_effect=run), \
+                         patch.object(sys, "argv", argv), contextlib.redirect_stdout(io.StringIO()):
+                        code = RUN_FIXTURE.main()
+                    summary = json.loads((output / "run-summary.json").read_text())
+                    self.assertEqual(code, 0 if valid else 1)
+                    self.assertEqual(summary["passed"], valid)
+                    self.assertEqual(summary["result_source"], route if route == "file" or valid else None)
+                    for name in ("run-summary.json", "fixture.log", "editor-import.log"):
+                        text = (output / name).read_text()
+                        self.assertFalse(text_categories(text) - {"fixture-evidence"}, name)
+                    for command in commands:
+                        self.assertIn("--audio-driver", command)
+                        self.assertEqual(command[command.index("--audio-driver") + 1], "Dummy")
+                        self.assertGreaterEqual(int(command[command.index("--quit-after") + 1]), 2)
+                        self.assertNotIn("-d", command)
 
 
 if __name__ == "__main__":
