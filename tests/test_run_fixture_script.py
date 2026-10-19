@@ -22,7 +22,7 @@ SPEC.loader.exec_module(RUN_FIXTURE)
 
 def successful_result():
     from fixture_result import EXPECTED_CASE_NAMES
-    return {"schema_version": 1, "passed": True, "failures": [],
+    return {"schema_version": 1, "passed": True, "failures": [], "variant_type_count": 40,
             "engine": {"string": "test-engine"}, "fixed_delta": 0.016,
             "cases": [{"name": name, "passed": True, "details": {}}
                       for name in sorted(EXPECTED_CASE_NAMES)]}

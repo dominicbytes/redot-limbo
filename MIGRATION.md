@@ -7,7 +7,7 @@
 2. Close the editor and remove the previous `addons/limboai` directory.
 3. Install the complete Redot LimboAI core package. Do not mix libraries or a
    manifest from another build.
-4. Open the project in Redot 26.2 and wait for import to finish.
+4. Open the project in a supported Redot 26.2 or 26.3 runtime and wait for import to finish.
 5. Resolve script parse errors before resaving resources. Custom scripts keep
    the upstream 1.8.0 `BTAction`, `BTCondition`, `BTDecorator`, `BTComposite`, and
    `LimboState` base classes.
@@ -44,3 +44,30 @@ the exact resources and use a project-specific conversion before resaving them.
   library dictionary survived serialization before resaving the scene.
 - Do not copy `.godot`, build caches, API dumps, or fixture output between
   projects.
+
+## From Redot 26.2 to 26.3
+
+Use `26.3.stable.official.85e520394` with the complete addon, including the
+patched libraries. The package version remains `1.8.0+redot.26.2.1`; the build
+ABI still comes from 26.2. Existing behavior trees and HSM/blackboard resources
+retain their public identities. Back up the project before allowing the new
+engine to import or resave it, then run representative trees and exported-game
+checks with the release library.
+
+Struct is available only on 26.3. New BBVariant/plan defaults can be empty
+Struct values; define custom fields in 26.3 scripts. Keep Struct resources and
+syntax out of any project that must still open on 26.2. See `LIMITATIONS.md`
+for the temporary headless-editor shutdown issue and its exact import-only CI
+gate. A runtime error or unexpected warning remains a failure on either engine.
+
+## From Redot 26.3 back to 26.2
+
+Back up the project and convert or remove every Struct value and declaration
+on 26.3 before opening it on 26.2, including parameters bound to blackboard
+variables. A saved Struct value fails the 26.2 text parser with an unexpected
+`Struct` identifier and does not load. A bound-mode, type-only BBVariant can
+load with `type = 39` because it contains no Struct syntax. Its declaration is
+preserved with an unsupported-type error; switching to saved-value mode leaves
+its native value editor unavailable rather than converting the declaration to
+Nil. Neither outcome provides downgrade conversion. Do not resave failed or
+unsupported resources on 26.2; restore the backup or finish conversion on 26.3.

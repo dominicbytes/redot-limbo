@@ -1,1 +1,2 @@
 LICENSE_REDOT_CPP.md text eol=lf
+patches/*.patch text eol=lf whitespace=-blank-at-eol,-space-before-tab

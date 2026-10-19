@@ -16,12 +16,9 @@ import time
 
 from fixture_result import validate_result
 from content_policy import sanitize, sanitize_text
+from editor_import import assess_import, FAILURE_PATTERN
 
 
-FAILURE_PATTERN = re.compile(
-    r"(?:\bERROR:|\bWARNING:|\bFATAL:|crash|segmentation|cannot load|failed|leaked)",
-    re.IGNORECASE,
-)
 EDITOR_SETTLE_FRAMES = 120
 RESULT_PREFIX = "LIMBOAI_FIXTURE_RESULT "
 
@@ -191,6 +188,8 @@ def main() -> int:
         action="store_true",
         help="Load the macOS template_release framework in the runtime fixture.",
     )
+    parser.add_argument("--editor-regression", action="store_true",
+                        help="Run the editor regression plugin during editor import.")
     args = parser.parse_args()
 
     source_root = Path(__file__).resolve().parents[1]
@@ -240,6 +239,20 @@ def main() -> int:
             "res://addons/limboai/bin/limboai.gdextension\n", encoding="utf-8"
         )
 
+    if args.editor_regression:
+        if forced_release_platform is not None:
+            parser.error("--editor-regression requires the editor library")
+        plugin = project_root / "addons/fixture_editor/plugin.cfg"
+        plugin.parent.mkdir(parents=True)
+        shutil.copyfile(project_root / "editor_regression.gd", plugin.parent / "editor_regression.gd")
+        plugin.write_text('[plugin]\nname="Fixture Editor"\ndescription="Editor regression"\n'
+                          'author="dominicbytes"\nversion="1"\nscript="editor_regression.gd"\n')
+        with (project_root / "project.godot").open("a", encoding="utf-8") as config:
+            config.write('\n[editor_plugins]\nenabled=PackedStringArray("res://addons/fixture_editor/plugin.cfg")\n')
+        extension_cache = project_root / ".godot/extension_list.cfg"
+        extension_cache.parent.mkdir(parents=True, exist_ok=True)
+        extension_cache.write_text("res://addons/limboai/bin/limboai.gdextension\n")
+
     import_command = [
         str(engine),
         "--headless",
@@ -276,12 +289,14 @@ def main() -> int:
         import_return_code, import_output, import_timed_out, import_duration = run_command(
             import_command, project_root, environment, args.timeout
         )
+    import_gate = assess_import(import_return_code, import_output, import_timed_out,
+                                project_root, args.editor_regression)
     replacements = [(str(engine), "$REDOT_BIN"), (str(project_root), "<fixture project>"),
                     (str(state_root), "<fixture state>"), (str(addon_project), "<addon project>"),
                     (str(source_root), "<repo clone>")]
     import_output = sanitize_text(import_output, replacements)
     import_log_path.write_text(import_output, encoding="utf-8")
-    if import_return_code == 0 and not import_timed_out:
+    if import_gate["passed"]:
         return_code, output_text, timed_out, duration = run_command(
             fixture_command, project_root, environment, args.timeout
         )
@@ -323,10 +338,10 @@ def main() -> int:
         result_path.write_text(sanitize_text(result_path.read_text(encoding="utf-8"), replacements), encoding="utf-8")
     result = sanitize(result, replacements)
 
-    suspicious_lines = unexpected_diagnostics(import_output, output_text, result)
+    suspicious_lines = import_gate["unexpected_diagnostics"] + unexpected_diagnostics("", output_text, result)
     passed = (
         not import_timed_out
-        and import_return_code == 0
+        and import_gate["passed"]
         and not timed_out
         and return_code == 0
         and result_error is None
@@ -342,6 +357,7 @@ def main() -> int:
         "import_skipped": forced_release_platform is not None,
         "fixture_command": fixture_command,
         "import_return_code": import_return_code,
+        "import_gate": import_gate,
         "import_timed_out": import_timed_out,
         "import_duration_seconds": round(import_duration, 6),
         "return_code": return_code,

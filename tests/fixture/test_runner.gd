@@ -83,6 +83,8 @@ func _run() -> void:
 	preload("res://runtime/children_replacement.gd").run(self)
 	preload("res://runtime/probability_weights.gd").run(self)
 	await preload("res://runtime/context_loss.gd").run(self)
+	_test_packed_vector4_clear_default()
+	_test_struct_compatibility()
 	_write_result()
 	quit(0 if _failures.is_empty() else 1)
 
@@ -558,6 +560,7 @@ func _record_case(case_name: String, passed: bool, details: Dictionary = {}) -> 
 func _write_result() -> void:
 	var result := {
 		"schema_version": 1,
+		"variant_type_count": TYPE_MAX,
 		"engine": Engine.get_version_info(),
 		"project": ProjectSettings.get_setting("application/config/name", ""),
 		"fixed_delta": FIXED_DELTA,
@@ -1036,3 +1039,49 @@ func _test_hsm_nested_exit_dispatch() -> void:
 	passed = passed and hsm.get_active_state() == null and not outside.is_active() and exits.size() == 1
 	_record_case("hsm_nested_exit_dispatch", passed, {"consumed": consumed, "results": results, "local_handlers": local_handlers.size(), "exits": exits.size(), "task_exits": running_task.exits})
 	host.free()
+
+
+func _test_packed_vector4_clear_default() -> void:
+	var bb := Blackboard.new()
+	# Warm up the binding and allocator before measuring retained array buffers.
+	bb.set_var(&"packed", PackedVector4Array([Vector4.ONE]))
+	bb.set_var(&"packed", 0)
+	var before: int = int(Performance.get_monitor(Performance.MEMORY_STATIC))
+	for _iteration: int in range(64):
+		var packed := PackedVector4Array()
+		packed.resize(8192)
+		bb.set_var(&"packed", packed)
+		bb.set_var(&"packed", 0)
+	var growth: int = int(Performance.get_monitor(Performance.MEMORY_STATIC)) - before
+	var param := BBVariant.new()
+	param.type = TYPE_PACKED_VECTOR4_ARRAY
+	var catalog: String = ""
+	for property: Dictionary in param.get_property_list():
+		if property.name == "type":
+			catalog = property.hint_string
+	var catalog_matches: bool = catalog.split(",").size() == TYPE_MAX and catalog.contains("Struct") == (TYPE_MAX == 40)
+	var default_value: Variant = param.saved_value
+	var default_is_empty: bool = typeof(default_value) == TYPE_PACKED_VECTOR4_ARRAY
+	if default_is_empty:
+		default_is_empty = default_value.is_empty()
+	var buffers_released: bool = growth < 262144
+	_record_case("packed_vector4_clear_default", default_is_empty and buffers_released and catalog_matches, {
+		"default_is_empty": default_is_empty, "buffers_released": buffers_released,
+		"catalog_matches": catalog_matches,
+	})
+
+
+func _test_struct_compatibility() -> void:
+	if TYPE_MAX <= TYPE_PACKED_VECTOR4_ARRAY + 1:
+		_record_case("struct_263", true, {
+			"skipped": true, "reason": "requires_variant_type_count_40",
+		})
+		return
+	# Keep new syntax out of the 26.2 parser, including its editor import scan.
+	var script := GDScript.new()
+	script.source_code = FileAccess.get_file_as_string("res://runtime/struct_263.gd.txt")
+	var error: Error = script.reload()
+	if error != OK:
+		_record_case("struct_263", false, {"load_error": error})
+		return
+	script.call(&"run", self)

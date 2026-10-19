@@ -17,6 +17,10 @@ import sys
 
 from limboai_version import generate_module_version_header
 
+sys.path.append("scripts")
+from prepare_binding import verify_binding_patch
+from pathlib import Path
+
 sys.path.append("gdextension")
 from fix_icon_imports import fix_icon_imports
 from update_icon_entries import update_icon_entries
@@ -119,11 +123,17 @@ def verify_binding_checkout(profile):
             print("GDExtension interface mismatch: expected " + expected_interface + ", got " + actual_interface)
             Exit(1)
 
+    if profile == "redot":
+        verify_binding_patch(Path("."))
+
     print("Verified locked " + profile + " binding: " + actual_ref)
 
 
 def verify_effective_binding_inputs(env, profile):
     # The binding has now resolved command-line, custom.py, and profile options.
+    if profile == "redot" and not env["build_library"]:
+        print("Locked redot binding requires build_library=yes; prebuilt archives are not verified.")
+        Exit(1)
     binding_dir = os.path.abspath("godot-cpp")
     extension_dir = env.get("gdextension_dir", os.path.join(binding_dir, "gdextension"))
     api_path = env.get("custom_api_file", os.path.join(extension_dir, "extension_api.json"))
@@ -177,6 +187,8 @@ for o in vars.options:
 env = SConscript("godot-cpp/SConstruct")
 
 verify_effective_binding_inputs(env, binding_profile)
+if binding_profile == "redot":
+    verify_binding_patch(Path("."))
 
 # These environments also own the binding compilation nodes. Map source paths
 # before any compilation actions execute, using the selected compiler family.

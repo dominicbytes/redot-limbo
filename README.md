@@ -1,7 +1,7 @@
 # Redot LimboAI
 
 Redot LimboAI is a downstream GDExtension port of LimboAI 1.8.0 for Redot
-26.2. It provides behavior trees, blackboards, hierarchical state machines,
+26.2 and 26.3. It provides behavior trees, blackboards, hierarchical state machines,
 the behavior-tree editor and debugger, runtime tree views, and typed-GDScript
 extension points while preserving the upstream public class and resource names.
 
@@ -15,8 +15,8 @@ downstream adapts that feature set to Redot 26.2's 4.5.2 API lineage.
 
 Use the core archive produced by `scripts/package_release.py`:
 
-1. Extract `addons/limboai` into the root of a Redot 26.2 project.
-2. Open the project with Redot 26.2 and allow the initial import to finish.
+1. Extract `addons/limboai` into the root of a supported Redot 26.2 or 26.3 project.
+2. Open the project with the pinned Redot 26.2 or 26.3 runtime and allow the initial import to finish.
 3. Confirm that `BehaviorTree`, `BTPlayer`, `LimboHSM`, and `LimboState` appear
    in the class reference or node/resource selectors.
 4. Read `MIGRATION.md` before replacing an existing LimboAI installation.
@@ -32,9 +32,11 @@ or newer.
 The build intentionally does not clone a mutable dependency. Populate
 `godot-cpp/` with the exact Redot binding commit in `deps.env`, replace its
 `gdextension/extension_api.json` with the verified Redot 26.2 API dump, and
-verify the hashes before invoking SCons 4.10.1.
+apply the reviewed binding patch before invoking SCons 4.10.1. Runtime 26.3
+uses the same libraries; builds always use the locked 26.2 API.
 
 ```text
+python scripts/prepare_binding.py --apply
 scons --project=<external-project> platform=<windows|linux|macos> target=editor
 scons --project=<external-project> platform=<windows|linux|macos> target=template_release
 ```
@@ -42,7 +44,7 @@ scons --project=<external-project> platform=<windows|linux|macos> target=templat
 Use `arch=x86_64` on Windows and Linux. On a native macOS builder, use
 `arch=universal macos_deployment_target=11.0`. Generated libraries and evidence
 belong outside this source tree.
-The build fails closed when the binding commit, API, interface header, or
+The build fails closed when the binding commit, patch/source hashes, effective API, interface header, or
 selected profile differs from the lock.
 
 ## Verification
@@ -58,7 +60,9 @@ python -m unittest discover -s tests -p "test_*.py"
 ```
 
 Platform builds, binary audits, and headless fixtures on built libraries run in
-`.github/workflows/redot-desktop.yml`; CI also compares assembled package bytes.
+`.github/workflows/redot-desktop.yml`; CI tests both pinned runtimes with both libraries, runs the editor regression,
+and compares runtime semantics and assembled package bytes. See `LIMITATIONS.md`
+for the temporary 26.3 editor-import shutdown exception.
 Extracted-package execution, visible editor/accessibility/lifecycle checks, and
 native game exports require separate validation.
 
