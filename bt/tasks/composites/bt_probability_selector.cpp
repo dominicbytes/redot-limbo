@@ -73,12 +73,16 @@ void BTProbabilitySelector::_exit() {
 
 BT::Status BTProbabilitySelector::_tick(double p_delta) {
 	while (selected_task.is_valid()) {
-		Status status = selected_task->execute(p_delta);
+		Ref<BTTask> child = selected_task;
+		Status status = child->execute(p_delta);
+		if (_is_execution_cancelled()) {
+			return FRESH;
+		}
 		if (status == FAILURE) {
 			if (abort_on_failure) {
 				return FAILURE;
 			}
-			failed_tasks.insert(selected_task);
+			failed_tasks.insert(child);
 			_select_task();
 		} else { // RUNNING or SUCCESS
 			return status;

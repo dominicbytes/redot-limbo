@@ -71,6 +71,11 @@ private:
 		BTTask *parent = nullptr;
 		Vector<Ref<BTTask>> children;
 		Status status = FRESH;
+		uint64_t abort_generation = 0;
+		uint64_t execution_generation = 0;
+		bool executing = false;
+		bool entered = false;
+		bool aborting = false;
 		double elapsed = 0.0;
 		bool display_collapsed = false;
 		bool enabled = true;
@@ -91,6 +96,7 @@ protected:
 
 	void _set_enabled(bool p_enabled) { data.enabled = p_enabled; }
 	void _emit_branch_changed();
+	_FORCE_INLINE_ bool _is_execution_cancelled() const { return data.execution_generation != data.abort_generation; }
 
 	virtual String _generate_name();
 	virtual void _setup() {}

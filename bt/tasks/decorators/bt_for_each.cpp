@@ -54,6 +54,9 @@ BT::Status BTForEach::_tick(double p_delta) {
 	get_blackboard()->set_var(save_var, elem);
 
 	Status status = get_child(0)->execute(p_delta);
+	if (_is_execution_cancelled()) {
+		return FRESH;
+	}
 	if (status == RUNNING) {
 		return RUNNING;
 	} else if (status == FAILURE) {

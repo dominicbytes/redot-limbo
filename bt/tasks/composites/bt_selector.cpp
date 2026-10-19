@@ -19,6 +19,9 @@ BT::Status BTSelector::_tick(double p_delta) {
 	Status status = FAILURE;
 	for (int i = last_running_idx; i < get_child_count(); i++) {
 		status = get_child(i)->execute(p_delta);
+		if (_is_execution_cancelled()) {
+			return FRESH;
+		}
 		if (status != FAILURE) {
 			last_running_idx = i;
 			break;

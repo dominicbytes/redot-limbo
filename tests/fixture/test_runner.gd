@@ -65,6 +65,7 @@ func _run() -> void:
 		await _test_hsm_and_bt_state(tree)
 		_test_runtime_view_and_performance(tree)
 	preload("res://runtime/disabled_subtree.gd").run(self)
+	preload("res://runtime/reentrant_abort.gd").run(self)
 	_write_result()
 	quit(0 if _failures.is_empty() else 1)
 

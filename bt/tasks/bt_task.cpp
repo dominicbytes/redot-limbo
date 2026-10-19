@@ -217,44 +217,77 @@ Ref<BTTask> BTTask::clone() const {
 }
 
 BT::Status BTTask::execute(double p_delta) {
+	ERR_FAIL_COND_V_MSG(data.executing || data.aborting, FRESH, "Cannot execute a task recursively.");
+	const Ref<BTTask> keep_alive{ this };
+	data.executing = true;
+	data.execution_generation = data.abort_generation;
+	auto finish = [this](Status p_status) {
+		data.executing = false;
+		return p_status;
+	};
+
 	if (data.status != RUNNING) {
 		// Reset children status.
 		if (data.status != FRESH) {
 			for (int i = 0; i < get_child_count(); i++) {
 				data.children.get(i)->abort();
+				if (_is_execution_cancelled()) {
+					return finish(FRESH);
+				}
 			}
 		}
+		data.entered = true;
 		// First native, then script.
 		_enter();
+		if (_is_execution_cancelled()) {
+			return finish(FRESH);
+		}
 		GDVIRTUAL_CALL(_enter);
+		if (_is_execution_cancelled()) {
+			return finish(FRESH);
+		}
 	} else {
 		data.elapsed += p_delta;
 	}
 
-	if (!GDVIRTUAL_CALL(_tick, p_delta, data.status)) {
-		data.status = _tick(p_delta);
+	Status next_status = FRESH;
+	if (!GDVIRTUAL_CALL(_tick, p_delta, next_status)) {
+		next_status = _tick(p_delta);
 	}
+	if (_is_execution_cancelled()) {
+		return finish(FRESH);
+	}
+	data.status = next_status;
 
 	if (data.status != RUNNING) {
-		// First script, then native.
+		data.entered = false;
+		// First script, then native. Mark exited before callbacks can abort.
 		GDVIRTUAL_CALL(_exit);
 		_exit();
 		data.elapsed = 0.0;
 	}
-	return data.status;
+	return finish(data.status);
 }
 
 void BTTask::abort() {
+	if (data.aborting) {
+		return;
+	}
+	data.aborting = true;
+	data.abort_generation += 1;
+	bool was_entered = data.entered;
+	data.entered = false;
 	for (int i = 0; i < data.children.size(); i++) {
 		get_child(i)->abort();
 	}
-	if (data.status == RUNNING) {
+	if (was_entered) {
 		// First script, then native.
 		GDVIRTUAL_CALL(_exit);
 		_exit();
 	}
 	data.status = FRESH;
 	data.elapsed = 0.0;
+	data.aborting = false;
 }
 
 int BTTask::get_enabled_child_count() const {
