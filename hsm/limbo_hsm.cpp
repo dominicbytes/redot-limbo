@@ -208,7 +208,8 @@ bool LimboHSM::_dispatch(const StringName &p_event, const Variant &p_cargo) {
 		}
 		if (to_state != nullptr) {
 			bool permitted = true;
-			if (to_state->guard_callable.is_valid()) {
+			if (!to_state->guard_callable.is_null()) {
+				ERR_FAIL_COND_V_MSG(!to_state->guard_callable.is_valid(), false, "LimboHSM: State guard callable is no longer valid.");
 				Variant ret;
 
 #ifdef LIMBOAI_MODULE

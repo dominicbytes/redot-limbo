@@ -59,6 +59,7 @@ func _run() -> void:
 	_test_hsm_transition_completion()
 	_test_hsm_exit_transaction()
 	_test_hsm_guard_fallback()
+	_test_hsm_expired_state_guard()
 	var tree: BehaviorTree = _test_resource_roundtrip()
 	if tree != null:
 		_test_direct_tree_execution(tree)
@@ -813,4 +814,32 @@ func _test_blackboard_inherited_prefetch() -> void:
 		passed = passed and mode_passed
 		observations.append({"enabled": enabled, "passed": mode_passed})
 	_record_case("blackboard_inherited_prefetch", passed, {"observations": observations})
+	host.free()
+
+
+func _test_hsm_expired_state_guard() -> void:
+	var host := Node.new()
+	root.add_child(host)
+	var hsm := LimboHSM.new()
+	hsm.update_mode = LimboHSM.MANUAL
+	host.add_child(hsm)
+	var a := LimboState.new()
+	var b := LimboState.new()
+	hsm.add_child(a)
+	hsm.add_child(b)
+	var receiver := Node.new()
+	b.set_guard(receiver.is_inside_tree)
+	hsm.add_transition(a, b, &"go")
+	hsm.initialize(host)
+	hsm.set_active(true)
+	var denied_before: bool = not hsm.dispatch(&"go") and hsm.get_active_state() == a
+	receiver.free()
+	var print_errors: bool = Engine.print_error_messages
+	Engine.print_error_messages = false
+	var denied_after: bool = not hsm.dispatch(&"go") and hsm.get_active_state() == a
+	Engine.print_error_messages = print_errors
+	b.clear_guard()
+	var allowed_after_clear: bool = hsm.dispatch(&"go") and hsm.get_active_state() == b
+	_record_case("hsm_expired_state_guard", denied_before and denied_after and allowed_after_clear, {"denied_before": denied_before, "denied_after": denied_after, "allowed_after_clear": allowed_after_clear})
+	hsm.set_active(false)
 	host.free()

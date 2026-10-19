@@ -127,6 +127,7 @@
 			<param index="0" name="guard_callable" type="Callable" />
 			<description>
 				Sets the guard function, which is a function called each time a transition to this state is considered. If the function returns [code]false[/code], the transition will be disallowed.
+				If the guard receiver is freed, transitions into this state are rejected with an error until a valid guard is set or [method clear_guard] is called.
 			</description>
 		</method>
 	</methods>
