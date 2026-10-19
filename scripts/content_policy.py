@@ -68,7 +68,7 @@ def text_categories(text: str, minimum_path: int = 0) -> set[str]:
     categories = set()
     for category, pattern in PATH_PATTERNS:
         # Short slash fragments also occur by chance in compressed image data.
-        if any(not system_path(match[0]) and len(match[0]) >= (max(8, minimum_path) if category == "rooted-path" else minimum_path)
+        if any(not system_path(match[0]) and len(match[0]) >= minimum_path
                for match in pattern.finditer(text)):
             categories.add(category)
     for category, pattern in CONTENT_PATTERNS:

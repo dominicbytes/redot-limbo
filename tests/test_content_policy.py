@@ -95,6 +95,11 @@ class ContentPolicyTests(unittest.TestCase):
         self.assertTrue(hits)
         self.assertNotIn(value, str(hits))
 
+    def test_short_rooted_names_are_checked_in_text_and_utf16(self):
+        value = chr(47) + "opt" + chr(47) + "x"
+        for encoding in ("utf-8", "utf-16le", "utf-16be"):
+            self.assertTrue(policy.scan_blob("metadata.txt", value.encode(encoding)))
+
     def test_paths_after_invalid_utf8_and_unicode_components_are_detected(self):
         value = rooted_samples()[0]
         self.assertTrue(policy.scan_blob("library.bin", b"invalid\xff" + value.encode()))
