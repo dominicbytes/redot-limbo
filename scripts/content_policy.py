@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import base64
+import binascii
 import gzip
 import io
 from pathlib import Path
@@ -10,16 +12,17 @@ import re
 import sys
 import tarfile
 import zipfile
+import zlib
 
 
 PATH_PATTERNS = (
     ("drive-root", re.compile(r"(?<!\w)[A-Za-z]:[\\/][^\r\n\x00\"<>|]*")),
-    ("network-root", re.compile(r"(?<![:\w/\\])(?:\\\\|//)[^\\/\s\x00]+[\\/][^\r\n\x00\"<>|]+")),
-    ("rooted-path", re.compile(r"(?<![\w\x3a/\\.])/(?:[^/\s\x00\"'<>|:]+/)+[^\s\x00\"'<>|:]*")),
+    ("network-root", re.compile(r"(?<![:\w/\\])(?:\\\\|//)[^\\/\s\x00]+[\\/](?![\\/])[^\r\n\x00\"<>|]+")),
+    ("rooted-path", re.compile(r"(?<![\w\x3a/\\.])/(?!\.{1,2}/)(?:[\w .~@%+$()-]+/)+[\w .~@%+$()-]+")),
     ("home-or-mount-root", re.compile(r"(?<![\w\x3a/\\.])/(?:home|Users|mnt|media|Volumes|workspace|workspaces|tmp)(?=[/\s\x00\"']|$)(?:/[^\r\n\x00\"'<>|]*)?", re.I)),
 )
 CONTENT_PATTERNS = (
-    ("private-key", re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----")),
+    ("private-key", re.compile(r"-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY(?: BLOCK)?-----")),
     ("credential", re.compile(r"\b(?:ghp_|github_pat_)[A-Za-z0-9_]+")),
     ("fixture-evidence", re.compile(r"LIMBOAI_FIXTURE|fixture-result\.json")),
     ("internal-notes", re.compile(r"(?:docs[/\\](?:gamedev|softwaredev)|reports[/\\]test-results)[/\\]", re.I)),
@@ -29,7 +32,7 @@ MAX_ARCHIVE_DEPTH = 8
 
 
 def system_path(value: str) -> bool:
-    return value.startswith(("/usr/lib/", "/System/Library/"))
+    return value.startswith(("/usr/lib/", "/System/Library/", "/dev/"))
 
 
 def sanitize_text(value: str, replacements=()) -> str:
@@ -61,10 +64,12 @@ def display_path(path: Path, root: Path | None = None) -> str:
     return sanitize_text(name)
 
 
-def text_categories(text: str) -> set[str]:
+def text_categories(text: str, minimum_path: int = 0) -> set[str]:
     categories = set()
     for category, pattern in PATH_PATTERNS:
-        if any(not system_path(match[0]) for match in pattern.finditer(text)):
+        # Short slash fragments also occur by chance in compressed image data.
+        if any(not system_path(match[0]) and len(match[0]) >= (max(8, minimum_path) if category == "rooted-path" else minimum_path)
+               for match in pattern.finditer(text)):
             categories.add(category)
     for category, pattern in CONTENT_PATTERNS:
         if pattern.search(text):
@@ -74,18 +79,79 @@ def text_categories(text: str) -> set[str]:
 
 def scan_blob(name: str, data: bytes, depth: int = 0) -> list[tuple[str, str]]:
     safe_name = sanitize_text(name)
+    for category, pattern in CONTENT_PATTERNS:
+        if category in ("private-key", "credential"):
+            safe_name = pattern.sub("<private content>", safe_name)
     categories = text_categories(name)
-    decoded = data.decode("utf-8", errors="replace")
-    for match in re.finditer(r"[^\x00-\x1f\x7f-\x9f\ufffd]{4,}", decoded):
-        categories.update(text_categories(match[0]))
-    for pattern, encoding in ((rb"(?:[\x20-\x7e]\x00){3,}", "utf-16le"),
-                              (rb"(?:\x00[\x20-\x7e]){3,}", "utf-16be")):
-        for match in re.finditer(pattern, data):
-            categories.update(text_categories(match[0].decode(encoding)))
-    hits = [(safe_name, category) for category in sorted(categories)]
+    if data.startswith(b"\x89PNG\r\n\x1a\n"):
+        if depth >= MAX_ARCHIVE_DEPTH:
+            return [(safe_name, "archive-limit")]
+        hits = [(safe_name, category) for category in sorted(categories)]
+        cursor = 8
+        try:
+            while cursor < len(data):
+                if cursor + 12 > len(data):
+                    raise ValueError("truncated image chunk")
+                size = int.from_bytes(data[cursor:cursor + 4], "big")
+                kind = data[cursor + 4:cursor + 8]
+                if cursor + 12 + size > len(data):
+                    raise ValueError("truncated image metadata")
+                payload = data[cursor + 8:cursor + 8 + size]
+                # Pixel data is not text; inspect metadata and trailing bytes.
+                compressed = False
+                if kind in (b"zTXt", b"iCCP"):
+                    keyword, payload = payload.split(b"\0", 1)
+                    hits.extend(scan_blob(name + "!<keyword>", keyword, depth + 1))
+                    if payload[0] != 0:
+                        raise ValueError("unknown metadata compression")
+                    payload, compressed = payload[1:], True
+                elif kind == b"iTXt":
+                    keyword, fields = payload.split(b"\0", 1)
+                    flag, method = fields[:2]
+                    language, translated, payload = fields[2:].split(b"\0", 2)
+                    hits.extend(scan_blob(name + "!<text fields>", keyword + b"\0" + language + b"\0" + translated, depth + 1))
+                    if flag not in (0, 1) or method != 0:
+                        raise ValueError("unknown text compression")
+                    compressed = flag == 1
+                if compressed:
+                    decoder = zlib.decompressobj()
+                    payload = decoder.decompress(payload, MAX_ARCHIVE_BYTES + 1)
+                    if len(payload) > MAX_ARCHIVE_BYTES or not decoder.eof:
+                        raise ValueError("invalid compressed metadata")
+                if kind in (b"tEXt", b"zTXt", b"iTXt", b"iCCP", b"eXIf"):
+                    hits.extend(scan_blob(name + "!" + kind.decode("ascii"), payload, depth + 1))
+                cursor += size + 12
+                if kind == b"IEND":
+                    hits.extend(scan_blob(name + "!<trailing bytes>", data[cursor:], depth + 1))
+                    return hits
+            raise ValueError("missing image end")
+        except (ValueError, IndexError, zlib.error):
+            return hits + [(safe_name, "invalid-image-metadata")]
     is_zip = data.startswith((b"PK\x03\x04", b"PK\x05\x06", b"PK\x07\x08"))
     is_gzip = data.startswith(b"\x1f\x8b")
     is_tar = data[257:262] == b"ustar"
+    container = is_zip or is_gzip or is_tar
+    embedded_hits = []
+    decoded = "" if container else data.decode("utf-8", errors="replace")
+    def embedded(match):
+        if depth >= MAX_ARCHIVE_DEPTH:
+            embedded_hits.append((safe_name, "archive-limit"))
+        else:
+            try:
+                payload = base64.b64decode(re.sub(r"\s", "", match[1]), validate=True)
+                embedded_hits.extend(scan_blob(name + "!<embedded data>", payload, depth + 1))
+            except (ValueError, binascii.Error):
+                embedded_hits.append((safe_name, "invalid-embedded-data"))
+        return "<embedded data>"
+    decoded = re.sub(r"data:[\w.+/-]+;base64,([A-Za-z0-9+/=\s]+)", embedded, decoded)
+    textual_payload = all(character.isprintable() or character in "\n\r\t" for character in decoded) and "\ufffd" not in decoded
+    for match in re.finditer(r"[^\x00-\x1f\x7f-\x9f\ufffd]{4,}", decoded):
+        categories.update(text_categories(match[0], 0 if textual_payload else 8))
+    for pattern, encoding in ((rb"(?:[\x20-\x7e]\x00){3,}", "utf-16le"),
+                              (rb"(?:\x00[\x20-\x7e]){3,}", "utf-16be")):
+        for match in re.finditer(pattern, b"" if container else data):
+            categories.update(text_categories(match[0].decode(encoding)))
+    hits = [(safe_name, category) for category in sorted(categories)] + embedded_hits
     if not (is_zip or is_gzip or is_tar):
         return hits
     if depth >= MAX_ARCHIVE_DEPTH or len(data) > MAX_ARCHIVE_BYTES:
@@ -93,11 +159,23 @@ def scan_blob(name: str, data: bytes, depth: int = 0) -> list[tuple[str, str]]:
     try:
         if is_zip:
             with zipfile.ZipFile(io.BytesIO(data)) as archive:
+                hits.extend(scan_blob(name + "!<archive comment>", archive.comment, depth + 1))
                 if sum(item.file_size for item in archive.infolist()) > MAX_ARCHIVE_BYTES:
                     return hits + [(safe_name, "archive-limit")]
                 for item in archive.infolist():
+                    hits.extend(scan_blob(name + "!" + item.filename + "!<metadata>", item.extra + item.comment, depth + 1))
                     hits.extend(scan_blob(name + "!" + item.filename, archive.read(item), depth + 1))
         elif is_gzip:
+            cursor = 10
+            if data[3] & 4:
+                size = int.from_bytes(data[cursor:cursor + 2], "little")
+                hits.extend(scan_blob(name + "!<gzip extra>", data[cursor + 2:cursor + 2 + size], depth + 1))
+                cursor += size + 2
+            for flag in (8, 16):
+                if data[3] & flag:
+                    end = data.index(b"\0", cursor)
+                    hits.extend(scan_blob(name + "!<gzip metadata>", data[cursor:end], depth + 1))
+                    cursor = end + 1
             with gzip.GzipFile(fileobj=io.BytesIO(data)) as archive:
                 unpacked = archive.read(MAX_ARCHIVE_BYTES + 1)
             if len(unpacked) > MAX_ARCHIVE_BYTES:
@@ -110,7 +188,7 @@ def scan_blob(name: str, data: bytes, depth: int = 0) -> list[tuple[str, str]]:
                     return hits + [(safe_name, "archive-limit")]
                 for item in members:
                     handle = archive.extractfile(item) if item.isfile() else None
-                    hits.extend(scan_blob(name + "!" + item.name, handle.read() if handle else b"", depth + 1))
+                    hits.extend(scan_blob(name + "!" + item.name, handle.read() if handle else item.linkname.encode(), depth + 1))
     except (OSError, ValueError, RuntimeError, zipfile.BadZipFile, tarfile.TarError):
         hits.append((safe_name, "invalid-archive"))
     return hits

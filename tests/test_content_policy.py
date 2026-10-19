@@ -1,8 +1,12 @@
 from pathlib import Path
 import io
+import base64
+import gzip
+import tarfile
 import sys
 import unittest
 import zipfile
+import zlib
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import content_policy as policy
@@ -46,6 +50,45 @@ class ContentPolicyTests(unittest.TestCase):
                 self.assertIn(("outer.zip!inner.docx!docProps/core.xml", "private-key"), hits)
                 self.assertNotIn(secret, str(hits))
 
+    def test_embedded_base64_content_is_decoded_before_scanning(self):
+        value = rooted_samples()[0].encode("utf-16le")
+        data = b'<image href="data:application/octet-stream;base64,' + base64.b64encode(value) + b'"/>'
+        hits = policy.scan_blob("image.svg", data)
+        self.assertTrue(hits)
+        self.assertNotIn(value.decode("utf-16le"), str(hits))
+
+    def test_png_metadata_is_scanned_without_classifying_pixels_as_text(self):
+        def chunk(kind, payload):
+            return len(payload).to_bytes(4, "big") + kind + payload + b"CRC!"
+        signature = b"\x89PNG\r\n\x1a\n"
+        value = rooted_samples()[0].encode()
+        image = signature + chunk(b"IDAT", value) + chunk(b"IEND", b"")
+        self.assertEqual(policy.scan_blob("image.png", image), [])
+        for kind, payload in ((b"tEXt", value), (b"zTXt", b"author\0\0" + zlib.compress(value)),
+                              (b"iTXt", b"author\0\1\0en\0label\0" + zlib.compress(value))):
+            image = signature + chunk(kind, payload) + chunk(b"IEND", b"")
+            self.assertTrue(policy.scan_blob("image.png", image))
+
+    def test_compressed_tar_members_and_secret_member_names_are_rejected(self):
+        value = rooted_samples()[1]
+        buffer = io.BytesIO()
+        with tarfile.open(fileobj=buffer, mode="w") as tar:
+            member = tarfile.TarInfo("metadata.xml")
+            payload = value.encode("utf-16be")
+            member.size = len(payload)
+            tar.addfile(member, io.BytesIO(payload))
+        compressed = bytearray(gzip.compress(b"safe content"))
+        compressed[3] |= 8
+        named = bytes(compressed[:10]) + value.encode() + b"\0" + bytes(compressed[10:])
+        self.assertTrue(policy.scan_blob("metadata.gz", named))
+        hits = policy.scan_blob("outer.tar.gz", gzip.compress(buffer.getvalue()))
+        self.assertTrue(hits)
+        self.assertNotIn(value, str(hits))
+        secret = "-----BEGIN PGP PRIVATE KEY BLOCK-----"
+        hits = policy.scan_blob("outer.zip", archive({secret: b"content"}))
+        self.assertIn("private-key", {category for _, category in hits})
+        self.assertNotIn(secret, str(hits))
+
     def test_archive_member_names_are_scanned_and_redacted(self):
         value = rooted_samples()[1]
         hits = policy.scan_blob("outer.zip", archive({value: b"content"}))
@@ -67,8 +110,8 @@ class ContentPolicyTests(unittest.TestCase):
         self.assertIn("archive-limit", {category for _, category in policy.scan_blob("outer.zip", data)})
 
     def test_resource_urls_and_system_dependencies_remain_valid(self):
-        value = 'res://addons/limboai/icon.svg https://example.com/source/file '
-        value += chr(47) + 'usr/lib/libSystem.B.dylib '
+        value = 'res://addons/limboai/icon.svg https://example.com/source/file -//W3C//DTD SVG 1.1//EN '
+        value += chr(47) + 'usr/lib/libSystem.B.dylib ' + chr(47) + 'dev/urandom '
         value += chr(47) + 'System/Library/Frameworks/Foundation.framework/Foundation'
         self.assertEqual(policy.scan_blob("legal.txt", value.encode()), [])
         self.assertEqual(policy.sanitize_text(value), value)
@@ -77,6 +120,11 @@ class ContentPolicyTests(unittest.TestCase):
         relative = chr(92) + "bt" + chr(92) + "../hsm/limbo_state.h"
         self.assertEqual(policy.scan_blob("library.bin", relative.encode()), [])
         self.assertEqual(policy.scan_blob("library.bin", b"/\xff\x01/\xff\x02"), [])
+        slash = bytes((47,))
+        noise = b"\0".join((b"%" + slash + b"p" + slash, b"=" + slash + b"f" + slash,
+                             slash + b"aM" + slash, slash + b"s" + slash + b"+",
+                             bytes((74, 58, 47, 49, 37, 82)), b"~$" + slash + b"." + slash + b"@S$ZBID1"))
+        self.assertEqual(policy.scan_blob("image.bin", noise), [])
 
     def test_nested_evidence_and_logs_are_sanitized(self):
         for value in rooted_samples():
