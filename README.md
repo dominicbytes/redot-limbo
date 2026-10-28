@@ -30,7 +30,8 @@ or newer.
 ## Build from source
 
 The build intentionally does not clone a mutable dependency. Populate
-`godot-cpp/` with the exact Redot binding commit in `deps.env`, replace its
+`godot-cpp/` with `https://github.com/dominicbytes/redot-cpp` at
+`9e7161bd7a3572a36ffa93109e73169861e9f834` (also locked in `deps.env`), replace its
 `gdextension/extension_api.json` with the verified Redot 26.2 API dump, and
 apply the reviewed binding patch before invoking SCons 4.10.1. Runtime 26.3
 uses the same libraries; builds always use the locked 26.2 API.
