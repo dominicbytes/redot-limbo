@@ -36,7 +36,7 @@ adapting only engine-facing incompatibilities proven against Redot 26.2's
 | Official Redot extension API | Engine-generated, single precision | `177E7796166929B2193C9CCE2FD32F59601A0147D0D1E7FE904B94E8F69F6577` |
 | Redot C++ source-backed API | Same 4.5.2 callable/type surface; custom-build labels only | `453A0CC128BB58333A001F7F43573A5961D973FB7B151AF43139869F22D5915C` |
 | Redot C++ interface header | Binding checkout file | `4CD695E86B92E2BF4E60BBE19CE137FAF41205DA1CF94F29E069AFEC0F7BF320` |
-| Redot C++ binding | `https://github.com/Redot-Engine/redot-cpp`, commit `598ec78e86b2c240a023f6de13daba70f7de8610` | Git commit |
+| Redot C++ binding | `https://github.com/dominicbytes/redot-cpp`, commit `9e7161bd7a3572a36ffa93109e73169861e9f834` | Git commit |
 
 The official engine-generated API is the accepted build input. A second clean
 dump produced the same hash. The source-backed API is retained as comparison
@@ -63,7 +63,8 @@ were downloaded and their SHA-256 verified against the release asset digests:
 | `Redot_v26.3-stable_linux_x64.zip` | `7D5155B80F4262F0A394C5040E539BB330CB63DD147BEDD9172D83EC2EFDBD91` |
 | `Redot_v26.3-stable_macos_universal.zip` | `BF781AE53DFAA4BBC6AADD21EBF2C69DA3681ED85894D3AB2A816F0B03755A34` |
 
-The binding revision stays unchanged, with one mandatory downstream patch:
+The owner binding fork fixes the Array initializer-list constructor and retains
+the 26.2 API. It still needs one mandatory downstream patch:
 `patches/redot-cpp-variant-forward-compat.patch`. It fixes PackedVector4Array
 cleanup and routes unknown runtime types through engine destruction.
 Run `python scripts/prepare_binding.py --apply` after installing the locked API.

@@ -1,7 +1,7 @@
 # Locked binding patch
 
 `redot-cpp-variant-forward-compat.patch` applies to redot-cpp commit
-`598ec78e86b2c240a023f6de13daba70f7de8610`. Apply it with
+`9e7161bd7a3572a36ffa93109e73169861e9f834`. Apply it with
 `python scripts/prepare_binding.py --apply`; SCons verifies it again before
 and after resolving effective API/interface inputs. Hashes are in `deps.env`.
 

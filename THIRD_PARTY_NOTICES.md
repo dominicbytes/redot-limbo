@@ -10,7 +10,7 @@ The source and core addon are distributed under the MIT-style license in
 ## Redot C++ bindings and build tools
 
 Native addon libraries include statically linked Redot C++ bindings at commit
-`598ec78e86b2c240a023f6de13daba70f7de8610`. Their complete MIT copyright and
+`9e7161bd7a3572a36ffa93109e73169861e9f834`. Their complete MIT copyright and
 permission notice is included in `LICENSE_REDOT_CPP.md`. The binding source
 checkout, generated API scratch files, and build caches are not included in
 the core archive. SCons 4.10.1 is a build tool and is not redistributed in
